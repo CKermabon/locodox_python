@@ -4,7 +4,8 @@ from m_argo_data import read_argo_data
 if __name__ == "__main__":
 	rep_argo_data = '/Users/chemon/ARGO_NEW/NEW_LOCODOX/data_test/'
 	num_float = '6902802'
-	ds_argo_inair, ds_argo_inwater,ds_argo_Sprof = read_argo_data(num_float,rep_argo_data)
+	ds_argo_inair, ds_argo_inwater,ds_argo_Sprof, optode_height = read_argo_data(num_float,rep_argo_data)
+	print(optode_height) 
 #	print(ds_argo_inair)
 #	print(ds_argo_inwater)
 #	plt.figure()
