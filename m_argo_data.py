@@ -37,6 +37,11 @@ def read_argo_data(num_float,rep_data_argo):
         	LONGITUDE=("N_MEASUREMENT",np.full(len(group["N_MEASUREMENT"]),ds_argo_Sprof.LONGITUDE.sel(N_PROF=group.CYCLE_NUMBER[0]).item()))
          )
 	)
+	ds_argo_Rtraj =  ds_argo_Rtraj.groupby("CYCLE_NUMBER").apply(
+    	 lambda group: group.assign_coords(
+        	LATITUDE=("N_MEASUREMENT",np.full(len(group["N_MEASUREMENT"]),ds_argo_Sprof.LATITUDE.sel(N_PROF=group.CYCLE_NUMBER[0]).item()))
+         )
+	)
 	# On ne garde que les donnees Rtraj qui nous interessent, à savoir les donnees dans l'air et proche de la surface. 
 	ds_argo_Rtraj_inair = ds_argo_Rtraj.where(ds_argo_Rtraj['MEASUREMENT_CODE'].isin([699,711,799]),drop=True)
 	ds_argo_Rtraj_inwater = ds_argo_Rtraj.where(ds_argo_Rtraj['MEASUREMENT_CODE'].isin([690,710]),drop=True)
