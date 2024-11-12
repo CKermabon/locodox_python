@@ -29,6 +29,8 @@ def read_argo_data(num_float,rep_data_argo):
 	bid = ds_argo_meta['LAUNCH_CONFIG_PARAMETER_NAME'].str.strip()=='CONFIG_OptodeVerticalPressureOffset_dbar'
 	optode_height = ds_argo_meta['LAUNCH_CONFIG_PARAMETER_VALUE'][bid].values
 
+	# Lecture de la date de deploiement du flotteur
+	launch_date = ds_argo_meta['LAUNCH_DATE'].values
 	# Dans le fichier Rtraj, il n'y a pas de longitude affectee aux donnees PPOX_DOXY dans l'air.
 	# On remplit les donnees de LONGITUDE à partir des donnees LONGITUDE des donnees synthetiques
 	# en faisant le lien entre les donnees Rtraj et Sprof via le numero de cycle.
@@ -46,5 +48,5 @@ def read_argo_data(num_float,rep_data_argo):
 	ds_argo_Rtraj_inair = ds_argo_Rtraj.where(ds_argo_Rtraj['MEASUREMENT_CODE'].isin([699,711,799]),drop=True)
 	ds_argo_Rtraj_inwater = ds_argo_Rtraj.where(ds_argo_Rtraj['MEASUREMENT_CODE'].isin([690,710]),drop=True)
 
-	return ds_argo_Rtraj_inair, ds_argo_Rtraj_inwater, ds_argo_Sprof, optode_height
+	return ds_argo_Rtraj_inair, ds_argo_Rtraj_inwater, ds_argo_Sprof, optode_height, launch_date
 
