@@ -4,6 +4,8 @@ from m_NCEP_read import read_NCEP
 from m_fonctions import watervapor
 import numpy as np
 import xarray as xr
+import warnings
+warnings.filterwarnings("ignore",category=RuntimeWarning)
 from scipy.optimize import curve_fit
 
 if __name__ == "__main__":

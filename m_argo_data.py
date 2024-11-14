@@ -48,5 +48,9 @@ def read_argo_data(num_float,rep_data_argo):
 	ds_argo_Rtraj_inair = ds_argo_Rtraj.where(ds_argo_Rtraj['MEASUREMENT_CODE'].isin([699,711,799]),drop=True)
 	ds_argo_Rtraj_inwater = ds_argo_Rtraj.where(ds_argo_Rtraj['MEASUREMENT_CODE'].isin([690,710]),drop=True)
 
+	# On ne garde que les variables utiles.
+	ds_argo_Rtraj_inair = ds_argo_Rtraj_inair[['PPOX_DOXY','TEMP','PSAL','JULD','CYCLE_NUMBER']]
+	ds_argo_Rtraj_inwater = ds_argo_Rtraj_inwater[['PPOX_DOXY','TEMP','PSAL','JULD','CYCLE_NUMBER']]
+
 	return ds_argo_Rtraj_inair, ds_argo_Rtraj_inwater, ds_argo_Sprof, optode_height, launch_date
 
