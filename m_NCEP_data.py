@@ -8,8 +8,9 @@ def read_NCEP(rep_data_ncep,lon_argo,lat_argo,time_argo):
 
     En entree :
         rep_data_ncep : repertoire NCEP
+	lon_argo/lat_argo/time_argo : Position/date ARGO
     En sortie :
-        ds_slp, ds_air, ds_rhum
+        ds_slp, ds_air, ds_rhum : Données NCEP interpolées aux dates/positions ARGO
     """
     fic_air = glob.glob(rep_data_ncep + 'air.sig*nc')
     ds_air = xr.open_mfdataset(fic_air)
