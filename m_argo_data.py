@@ -47,7 +47,7 @@ def read_argo_data_for_NCEP(num_float,rep_data_argo,which_psal,code_inair,code_i
     	############################################################################################
     	# Recherche de la salinite valide la plus proche de la surface (entre 0 et 10m) dans le fichier Sprof.
     	#
-	valid_pres_range = (ds_argo_Sprof.PRES >= 0) & (ds_argo_Sprof.PRES <= 10)
+	valid_pres_range = (ds_argo_Sprof.PRES >= 0) & (ds_argo_Sprof.PRES <= 20)
 
     	# Masque combiné pour valider les 2 conditions (QC et niveau de pression)
 	valid_mask = valid_qc & valid_pres_range
