@@ -7,13 +7,17 @@ import numpy as np
 import pandas as pd
 
 # Fonction de lecture
-def read_argo_data_for_NCEP(num_float,rep_data_argo,which_psal,code_inair,code_inwater):
+def read_argo_data_for_NCEP(num_float,rep_data_argo,which_psal,code_inair,code_inwater,min_pres,max_pres):
 	""" 
 	Cette fonction lit les fichiers Rtraj et Sprof d'un flotteur.
 	En entree : 
  		num_float : numero WMO du flotteur
  		rep_data_argo : repertoire ou sont les donnees ARGO
-        which_psal : Indique si l'utilisateur souhaite lire PSAL (1) ou PSAL_ADJUSTED (2).
+        which_psal : Indique si l'utilisateur souhaite lire PSAL (1) ou PSAL_ADJUSTED (2) ou PSAL_ADJUSTED si existe sinon PSAL (3).
+        code_inair : Code associe aux donnees dans l'air dans le fichier Rtraj.nc ARGO (699/711/799)
+        code_inwater : Code associe aux donnees InWater dans le fichier Rtraj.nc ARGO (690/710)
+        min_pres/max_res : Minimum etMaximum de pression, utilises pour trouver la salinite valide la plus proche de la surface
+        
 	En sortie :
  		ds_argo_Rtraj_inair : donnees Rtraj dans l'air (InAir) moyennees par cycle
  		ds_argo_Rtraj_inwater : donnees Rtraj InWater moyennees par cycle 
@@ -38,49 +42,53 @@ def read_argo_data_for_NCEP(num_float,rep_data_argo,which_psal,code_inair,code_i
 	ds_argo_Sprof = xr.open_dataset(fic_argo_Sprof[0],engine='argo')
 	ds_argo_meta = xr.open_dataset(fic_argo_meta[0],engine='argo')
 
-	# Dans le Sprof, on ne garde que les QC 1 ou 2 pour la salinite.
-	if which_psal == 1:
-		valid_qc = (ds_argo_Sprof['PSAL_QC']==1) | (ds_argo_Sprof['PSAL_QC']==2)
-	else:
-		valid_qc = (ds_argo_Sprof['PSAL_ADJUSTED_QC']==1) | (ds_argo_Sprof['PSAL_ADJUSTED_QC']==2)
+	# Recherche de la salinite (PSAL et PSAL_ADJUSTED) correcte la plus proche de la surface
+	valid_pres_range = (ds_argo_Sprof.PRES >= min_pres) & (ds_argo_Sprof.PRES <= max_pres)
 
-    	############################################################################################
-    	# Recherche de la salinite valide la plus proche de la surface (entre 0 et 10m) dans le fichier Sprof.
-    	#
-	valid_pres_range = (ds_argo_Sprof.PRES >= 0) & (ds_argo_Sprof.PRES <= 20)
+	var_psal = ['PSAL','PSAL_ADJUSTED']
 
-    	# Masque combiné pour valider les 2 conditions (QC et niveau de pression)
-	valid_mask = valid_qc & valid_pres_range
-    	# On force les pressions non 'valides' a une valeur infinie.
-	valid_pres = ds_argo_Sprof.PRES.where(valid_mask, other=np.inf)
-    	# recherche des indices associes a la pression minimale 'valide' pour chaque profil
-	min_pres_idx = valid_pres.argmin(dim="N_LEVELS")
+	for i_var in range(0,len(var_psal)):
+		var_en_cours = var_psal[i_var]
+		print(f'Recherche de la valeur de {var_en_cours} dans Sprof correcte la plus proche de la surface\
+ entre {min_pres} et {max_pres}')
+		valid_qc = (ds_argo_Sprof[var_en_cours+'_QC']==1) | (ds_argo_Sprof[var_en_cours+'_QC']==2)
 
-    	# Extraire les valeurs de PSAL correspondantes
-	if which_psal == 1:
-		psal_results = ds_argo_Sprof['PSAL'].isel(N_LEVELS=min_pres_idx)
-	else:
-		psal_results = ds_argo_Sprof['PSAL_ADJUSTED'].isel(N_LEVELS=min_pres_idx)
-        
-    	# On garde les valeurs de salinite repondant aux criteres de QC et de niveau de pression.   
-	psal_results = psal_results.where(valid_pres.min(dim="N_LEVELS") != np.inf)
+		# Masque combiné pour valider les 2 conditions (QC et niveau de pression)
+		valid_mask = valid_qc & valid_pres_range
+		# On force les pressions non 'valides' a une valeur infinie.
+		valid_pres = ds_argo_Sprof.PRES.where(valid_mask, other=np.inf)
+		# Recherche des indices associes a la pression minimale 'valide' pour chaque profil
+		min_pres_idx = valid_pres.argmin(dim="N_LEVELS")
+
+		# Extraire les valeurs de PSAL correspondantes, repondant aux criteres de QC et de niveau de pression. 
+		if i_var == 0:
+			psal_results = ds_argo_Sprof['PSAL'].isel(N_LEVELS=min_pres_idx)
+			psal_results = psal_results.where(valid_pres.min(dim="N_LEVELS") != np.inf)
+		else:
+			psal_adj_results = ds_argo_Sprof['PSAL_ADJUSTED'].isel(N_LEVELS=min_pres_idx)
+			psal_adj_results = psal_adj_results.where(valid_pres.min(dim="N_LEVELS") != np.inf)
+
+	# L'utilisateur peut vouloir prendre les donnees PSAL_ADJUSTED si elles existent, sinon il prend PSAL.        
 	cycle_results = ds_argo_Sprof['CYCLE_NUMBER']
 	psal_results = psal_results.to_numpy()
+	psal_adj_results = psal_adj_results.to_numpy()
+	psal_mixte_results = psal_adj_results.copy()
+	isbad = np.isnan(psal_mixte_results)
+	psal_mixte_results[isbad] = psal_results[isbad]
 	cycle_results = cycle_results.to_numpy()
+
 	############################################################################################
 
 	############################################################################################
-	# Recherche de la temperature valide la plus proche de la surface (entre 0 et 10m) dans le fichier Sprof.
+	# Recherche de la temperature valide la plus proche de la surface (entre min_pres et max_pres) dans le fichier Sprof.
 	#
 	# Dans le Sprof, recherche de la temperature valide la plus proche de la surface.
 	# Remarque : Dans le Rtraj, tous les TEMP_QC sont a 3
 	# Dans le fichier synthetique, le profil TEMP contient les donnees de profils
 	# et du near surface. Les donnees de TEMP_ADJUSTED ne comprennent pas les donnees Near
 	# (elles sont vides). On travaille donc sur les donnees TEMP.
-	valid_qc = (ds_argo_Sprof['TEMP_QC']==1) | (ds_argo_Sprof['TEMP_QC']==2) | (ds_argo_Sprof['TEMP_QC']==3)
 
-	# Dans le Sprof, on ne garde que les valeurs entre O et 10m.
-	valid_pres_range = (ds_argo_Sprof.PRES >= 0) & (ds_argo_Sprof.PRES <= 10)
+	valid_qc = (ds_argo_Sprof['TEMP_QC']==1) | (ds_argo_Sprof['TEMP_QC']==2) | (ds_argo_Sprof['TEMP_QC']==3)
 
 	# Masque combiné pour valider les 2 conditions (QC et niveau de pression)
 	valid_mask = valid_qc & valid_pres_range
@@ -150,8 +158,19 @@ def read_argo_data_for_NCEP(num_float,rep_data_argo,which_psal,code_inair,code_i
 	for i_data in range(ds_argo_Rtraj_inair['PSAL'].size): 
 		isok = np.where(cycle_results==ds_argo_Rtraj_inair['CYCLE_NUMBER'][i_data].values)[0]
 		if isok.size > 0:
-			ds_argo_Rtraj_inair['PSAL'][i_data] = psal_results[isok][0]
-			ds_argo_Rtraj_inwater['PSAL'][i_data] = psal_results[isok][0]
+			if which_psal == 1:
+				if i_data==0: print(f'On conserve les donnees PSAL')
+				ds_argo_Rtraj_inair['PSAL'][i_data] = psal_results[isok][0]
+				ds_argo_Rtraj_inwater['PSAL'][i_data] = psal_results[isok][0]
+			elif which_psal == 2:
+				if i_data==0:print(f'On conserve les donnees PSAL_ADJUSTED')
+				ds_argo_Rtraj_inair['PSAL'][i_data] = psal_adj_results[isok][0]
+				ds_argo_Rtraj_inwater['PSAL'][i_data] = psal_adj_results[isok][0] 
+			else:
+				if i_data==0:print(f'On conserve les donnees PSAL_ADJUSTED quand elles existent.\n\
+Sinon, on prend les donnees PSAL.')
+				ds_argo_Rtraj_inair['PSAL'][i_data] = psal_mixte_results[isok][0]
+				ds_argo_Rtraj_inwater['PSAL'][i_data] = psal_mixte_results[isok][0]
 		else:
 			ds_argo_Rtraj_inair['PSAL'][i_data]=np.nan
 			ds_argo_Rtraj_inwater['PSAL'][i_data]=np.nan
