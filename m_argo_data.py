@@ -5,8 +5,204 @@ import xarray as xr
 import glob
 import numpy as np
 import pandas as pd
+from m_fonctions import O2ctoO2p
 
-# Fonction de lecture
+def read_argo_launch_date(num_float,rep_data_argo):
+    """ 
+    Fonction permettant de recuperer la date de deploiement du flotteur.
+    En entree :
+        num_float : numero WMO du flotteur
+        rep_data_argo : repertoire des donnees ARGO
+
+    En sortie :
+        launch_date : date de deploiement du flotteur
+    """
+    fic_argo_meta = glob.glob(rep_data_argo + num_float + '/*meta.nc')
+    ds_argo_meta = xr.open_dataset(fic_argo_meta[0],engine='argo')
+    launch_date = ds_argo_meta['LAUNCH_DATE'].values
+    return launch_date
+    
+# Fonctions de lecture des donnees ARGO en vue d'une correction via WOA
+def read_argo_data_for_WOA(num_float,rep_data_argo,which_var,temp_qc,sal_qc,doxy_qc):
+    """
+    Cette fonction lit le fichier Sprof ARGO.
+    En entree :
+        num_float : numero WMO du flotteur
+        rep_data_argo :  repertoire des donnees ARGO
+        which_var : Indique si on utilise les donnees ajustees (2) ou les donnees 'temps reel' (1) 
+        ou les donnees ajustees si elles existent sinon les donnees 'temps reel' pour le calcul de le % de saturation d'oxygene
+        temp_qc,sal_qc, doxy_qc : flag de qualite (QC) a garder pour
+
+    En sortie :
+         ds_argo_Sprof : donnees ARGO (lon/lat/time) issues du Sprof utiles a la correction WOA
+    """
+    fic_argo_Sprof = glob.glob(rep_data_argo + num_float + '/*Sprof.nc')
+    ds_argo_Sprof = xr.open_dataset(fic_argo_Sprof[0],engine='argo')
+
+    # On garde uniquement les profils remontee (le premeir profil est souvent un profil descente qui ne commence pas en surface)
+    #ds_argo_Sprof = ds_argo_Sprof.where(ds_argo_Sprof['DIRECTION']=='A',drop=True)
+    if which_var == 1:
+        ds_argo_Sprof['PSAL_ARGO'] = ds_argo_Sprof['PSAL']
+        ds_argo_Sprof['PSAL_ARGO_QC'] = ds_argo_Sprof['PSAL_QC']
+        ds_argo_Sprof['PRES_ARGO'] = ds_argo_Sprof['PRES']
+        ds_argo_Sprof['PRES_ARGO_QC'] = ds_argo_Sprof['PRES_QC']
+        ds_argo_Sprof['TEMP_ARGO'] = ds_argo_Sprof['TEMP']
+        ds_argo_Sprof['TEMP_ARGO_QC'] = ds_argo_Sprof['TEMP_QC']
+    elif which_var == 2:
+        ds_argo_Sprof['PSAL_ARGO'] = ds_argo_Sprof['PSAL_ADJUSTED']
+        ds_argo_Sprof['PSAL_ARGO_QC'] = ds_argo_Sprof['PSAL_ADJUSTED_QC']
+        ds_argo_Sprof['PRES_ARGO'] = ds_argo_Sprof['PRES_ADJUSTED']
+        ds_argo_Sprof['PRES_ARGO_QC'] = ds_argo_Sprof['PRES_ADJUSTED_QC']
+        ds_argo_Sprof['TEMP_ARGO'] = ds_argo_Sprof['TEMP_ADJUSTED']
+        ds_argo_Sprof['TEMP_ARGO_QC'] = ds_argo_Sprof['TEMP_ADJUSTED_QC'] 
+    else:
+        ds_argo_Sprof['PSAL_ARGO'] = ds_argo_Sprof['PSAL_ADJUSTED']
+        ds_argo_Sprof['PSAL_ARGO'] = ds_argo_Sprof['PSAL_ARGO'].where((np.isfinite(ds_argo_Sprof['PSAL_ARGO'])),ds_argo_Sprof['PSAL'])
+        ds_argo_Sprof['PSAL_ARGO_QC'] = ds_argo_Sprof['PSAL_ADJUSTED_QC']
+        ds_argo_Sprof['PSAL_ARGO_QC'] = ds_argo_Sprof['PSAL_ARGO_QC'].where((np.isfinite(ds_argo_Sprof['PSAL_ADJUSTED'])),ds_argo_Sprof['PSAL_QC'])
+
+        ds_argo_Sprof['PRES_ARGO'] = ds_argo_Sprof['PRES_ADJUSTED']
+        ds_argo_Sprof['PRES_ARGO'] = ds_argo_Sprof['PRES_ARGO'].where((np.isfinite(ds_argo_Sprof['PRES_ARGO'])),ds_argo_Sprof['PRES'])
+        ds_argo_Sprof['PRES_ARGO_QC'] = ds_argo_Sprof['PRES_ADJUSTED_QC']
+        ds_argo_Sprof['PRES_ARGO_QC'] = ds_argo_Sprof['PRES_ARGO_QC'].where((np.isfinite(ds_argo_Sprof['PRES_ADJUSTED'])),ds_argo_Sprof['PRES_QC'])
+
+        ds_argo_Sprof['TEMP_ARGO'] = ds_argo_Sprof['TEMP_ADJUSTED']
+        ds_argo_Sprof['TEMP_ARGO'] = ds_argo_Sprof['TEMP_ARGO'].where((np.isfinite(ds_argo_Sprof['TEMP_ARGO'])),ds_argo_Sprof['TEMP'])
+        ds_argo_Sprof['TEMP_ARGO_QC'] = ds_argo_Sprof['TEMP_ADJUSTED_QC'] 
+        ds_argo_Sprof['TEMP_ARGO_QC'] = ds_argo_Sprof['TEMP_ARGO_QC'].where((np.isfinite(ds_argo_Sprof['TEMP_ADJUSTED'])),ds_argo_Sprof['TEMP_QC'])
+
+
+    # On garde les temperatures, DOXY et salinites avec un QC corrects. On force les autres valeurs a NaN
+    ds_argo_Sprof['TEMP_ARGO'] = ds_argo_Sprof['TEMP_ARGO'].where((ds_argo_Sprof['TEMP_ARGO_QC'].isin(temp_qc)),np.nan)
+    ds_argo_Sprof['PSAL_ARGO'] = ds_argo_Sprof['PSAL_ARGO'].where((ds_argo_Sprof['PSAL_ARGO_QC'].isin(sal_qc)),np.nan)
+    ds_argo_Sprof['PRES_ARGO'] = ds_argo_Sprof['PRES_ARGO'].where((ds_argo_Sprof['PRES_ARGO_QC'].isin(temp_qc)),np.nan)
+    ds_argo_Sprof['DOXY'] = ds_argo_Sprof['DOXY'].where((ds_argo_Sprof['DOXY_QC'].isin(doxy_qc)),np.nan)
+    ds_argo_Sprof = ds_argo_Sprof.rename_vars({'DOXY' :'DOXY_ARGO','DOXY_QC':'DOXY_ARGO_QC'})
+                                               
+    if ds_argo_Sprof['PRES_ARGO'].isnull().all():
+        print(f'Attention : Aucune donnees de pression valide ...\nArret')
+        return None
+
+    if ds_argo_Sprof['TEMP_ARGO'].isnull().all():
+        print(f'Attention : Aucune donnees de temperature valide ...\nArret')
+        return None
+
+    if ds_argo_Sprof['PSAL_ARGO'].isnull().all():
+        print(f'Attention : Aucune donnees de salinite valide ...\nArret')
+        return None
+        
+    if ds_argo_Sprof['DOXY_ARGO'].isnull().all():
+        print(f'Attention : Aucune donnees de O2 valide ...\nArret')
+        return None
+   
+    # On garde les variables utiles au calcul de PSAT.
+    ds_argo_Sprof = ds_argo_Sprof[['TEMP_ARGO','TEMP_ARGO_QC','PSAL_ARGO','PSAL_ARGO_QC','DOXY_ARGO','DOXY_ARGO_QC','PRES_ARGO','PRES_ARGO_QC','JULD','LONGITUDE','LATITUDE']]
+
+
+    return ds_argo_Sprof
+    
+    
+def read_argo_data_for_WOA_old(num_float,rep_data_argo,which_var,qc_psal):
+    """
+    Cette fonction lit le fichier Sprof ARGO.
+    En entree :
+        num_float : numero WMO du flotteur
+        rep_data_argo :  repertoire des donnees ARGO
+        which_var : Indique si on utilise les donnees ajustees (2) ou non (1) pour le calcul de le % de saturation d'oxygene
+
+    En sortie :
+         ds_argo_Sprof : donnees ARGO (lon/lat/time) issues du Sprof utiles a la correction WOA
+    """
+    fic_argo_Sprof = glob.glob(rep_data_argo + num_float + '/*Sprof.nc')
+    ds_argo_Sprof = xr.open_dataset(fic_argo_Sprof[0],engine='argo')
+    fic_argo_meta = glob.glob(rep_data_argo + num_float + '/*meta.nc')
+    ds_argo_meta = xr.open_dataset(fic_argo_meta[0],engine='argo')
+    launch_date = ds_argo_meta['LAUNCH_DATE'].values
+
+    # On garde uniquement les profils remontee (le premeir profil est souvent un profil descente qui ne commence pas en surface)
+    #ds_argo_Sprof = ds_argo_Sprof.where(ds_argo_Sprof['DIRECTION']=='A',drop=True)
+    
+    if which_var == 1:
+        var_sal = 'PSAL'
+        var_temp = 'TEMP'
+        var_pres = 'PRES'
+    else:
+        var_sal = 'PSAL_ADJUSTED'
+        var_temp = 'TEMP_ADJUSTED'
+        var_pres = 'PRES_ADJUSTED'
+    var_sal_qc = var_sal + '_QC'
+    var_temp_qc = var_temp + '_QC'
+    var_pres_qc = var_pres + '_QC'
+
+    finite_mask = (np.isfinite(ds_argo_Sprof[var_pres].values)) & ((ds_argo_Sprof[var_pres_qc].values == 1) | (ds_argo_Sprof[var_pres_qc].values == 2))
+    nb_indices = np.count_nonzero(finite_mask) 
+    if nb_indices==0:
+        print(f'Attention : Aucune donnees de pression valide ...\nArret')
+        return None, None, None, None
+        
+    finite_mask = (np.isfinite(ds_argo_Sprof[var_temp].values)) & ((ds_argo_Sprof[var_temp_qc].values == 1) | (ds_argo_Sprof[var_temp_qc].values == 2))
+    nb_indices = np.count_nonzero(finite_mask) 
+    if nb_indices==0:
+        print(f'Attention : Aucune donnees de temperature valide ...\nArret')  
+        return None, None, None, None
+
+    finite_mask = (np.isfinite(ds_argo_Sprof[var_sal].values)) & ((ds_argo_Sprof[var_sal_qc].values == 1) | (ds_argo_Sprof[var_sal_qc].values == 2))
+    nb_indices = np.count_nonzero(finite_mask) 
+    if nb_indices==0:
+        print(f'Attention : Aucune donnees de salinite valide ...\nArret') 
+        return None, None, None, None
+        
+    # Conversion de DOXY en PPOX
+    # On garde les donnees PPOX dont le QC (en temperature/salinite et DOXY) est invalide.
+    #ds_argo_Sprof['PPOX_DOXY'] = O2ctoO2p(ds_argo_Sprof['DOXY'],ds_argo_Sprof[var_temp],ds_argo_Sprof[var_sal]) # On calcule PPOX pour P=0
+    #ds_argo_Sprof['PPOX_DOXY'] = ds_argo_Sprof['PPOX_DOXY'].where((ds_argo_Sprof[var_temp_qc].isin([1,2,8])),np.nan) # On garde QC temp 1/2/8
+    #ds_argo_Sprof['PPOX_DOXY'] = ds_argo_Sprof['PPOX_DOXY'].where((ds_argo_Sprof[var_sal_qc].isin(qc_psal)),np.nan) # On garde QC psal fourni par l'utilisateur
+    #ds_argo_Sprof['PPOX_DOXY'] = ds_argo_Sprof['PPOX_DOXY'].where((ds_argo_Sprof['DOXY_QC'].isin([1,2,3,8])),np.nan) # On garde QC DOXY 1/2/3/8
+
+    # Interpolation sur une grille reguliere en pression (definie par l'utilisateur).
+    # On interpole les donnees de PPOX ARGO sur une grille reguliere avant de faire la moyenne sur l'intervalle de pression fournie par l'utilisateur.
+    # Cela permet d'avoir un poids identique pour chaque pression.
+    #ppox_argo = np.empty(shape=(ds_argo_Sprof['N_PROF'].size,max_pres-min_pres+1))
+    #new_pres = np.arange(min_pres,max_pres+1,1)
+    #for i_cycle in (range(0,len(ds_argo_Sprof['N_PROF']))):
+    #    data_en_cours = ds_argo_Sprof['PPOX_DOXY'][i_cycle,:]
+    #    isok = np.isfinite(data_en_cours)
+    #    nb_indices_ok = np.count_nonzero(isok) 
+    #    if nb_indices_ok>0:
+    #        ppox_argo[i_cycle] = np.interp(new_pres,ds_argo_Sprof['PRES'][i_cycle,isok],data_en_cours[isok])
+    #    else:
+    #        ppox_argo[i_cycle] = np.nan
+        
+    #ppox_argo = np.nanmean(ppox_argo,axis=1)    # On moyenne entre les pressions min_pres/max_pres. On obtient une valeur par cycle.
+    
+    #ds_argo_Sprof = ds_argo_Sprof.assign_coords({'N_PROF':range(len(ds_argo_Sprof.N_PROF)), 'N_LEVELS':range(len(ds_argo_Sprof.N_LEVELS))})
+    #ds_argo_Sprof_interp = ds_argo_Sprof.argo.interp_std_levels(new_pres,axis=var_pres) # Ne conserve que les profils qui vont jusqu'à max(new_pres). Non OK pour nos besoins
+    #ds_argo_Sprof_interp = ds_argo_Sprof.interp(new_pres,axis=var_pres)
+
+    # On garde les temperatures, DOXY et salinites avec un QC corrects. On force les autres valeurs a NaN
+    ds_argo_Sprof[var_temp] = ds_argo_Sprof[var_temp].where((ds_argo_Sprof[var_temp_qc].isin([1,2,8])),np.nan)
+    ds_argo_Sprof[var_sal] = ds_argo_Sprof[var_sal].where((ds_argo_Sprof[var_sal_qc].isin(qc_psal)),np.nan)
+    ds_argo_Sprof['DOXY'] = ds_argo_Sprof['DOXY'].where((ds_argo_Sprof['DOXY_QC'].isin([1,2,3,8])),np.nan)
+    
+    # Conversion de DOXY en PPOX
+    # On garde les donnees PPOX dont le QC (en temperature/salinite et DOXY) est invalide.
+    ds_argo_Sprof['PPOX_DOXY'] = O2ctoO2p(ds_argo_Sprof['DOXY'],ds_argo_Sprof[var_temp],ds_argo_Sprof[var_sal]) # On calcule PPOX pour P=0
+    ds_argo_Sprof['PPOX_DOXY'] = ds_argo_Sprof['PPOX_DOXY'].where((ds_argo_Sprof[var_temp_qc].isin([1,2,8])),np.nan) # On garde QC temp 1/2/8
+    ds_argo_Sprof['PPOX_DOXY'] = ds_argo_Sprof['PPOX_DOXY'].where((ds_argo_Sprof[var_sal_qc].isin(qc_psal)),np.nan) # On garde QC psal fourni par l'utilisateur
+    ds_argo_Sprof['PPOX_DOXY'] = ds_argo_Sprof['PPOX_DOXY'].where((ds_argo_Sprof['DOXY_QC'].isin([1,2,3,8])),np.nan) # On garde QC DOXY 1/2/3/8
+    
+    # On garde les variables utiles au calcul de PSAT.
+    ds_argo_Sprof = ds_argo_Sprof[[var_temp,var_sal,'DOXY',var_pres,'LONGITUDE','LATITUDE','JULD','PPOX_DOXY']] 
+    #ds_argo_Sprof = ds_argo_Sprof.assign_coords({'N_PROF':range(len(ds_argo_Sprof.N_PROF)), 'N_LEVELS':range(len(ds_argo_Sprof.N_LEVELS))})
+    #ds_argo_Sprof_interp = ds_argo_Sprof.argo.interp_std_levels(new_pres,axis=var_pres) # Ne conserve que les profils qui vont jusqu'à max(new_pres). Non OK pour nos besoins
+    #ds_argo_Sprof_interp = ds_argo_Sprof.interp(new_pres,axis=var_pres)
+
+    ds_argo_Sprof = ds_argo_Sprof.rename_vars({var_temp :'TEMP_ARGO',var_sal:'PSAL_ARGO',var_pres:'PRES_ARGO'})
+
+    return ds_argo_Sprof, launch_date
+    #return interpol_data,ds_argo_Sprof['LATITUDE'],ds_argo_Sprof['LONGITUDE'],ds_argo_Sprof['JULD']
+
+# Fonctions de lecture des donnees ARGO en vue d'une correction via NCEP
 def read_argo_data_for_NCEP(num_float,rep_data_argo,which_psal,code_inair,code_inwater,min_pres,max_pres):
 	""" 
 	Cette fonction lit les fichiers Rtraj et Sprof d'un flotteur.
@@ -16,7 +212,7 @@ def read_argo_data_for_NCEP(num_float,rep_data_argo,which_psal,code_inair,code_i
         which_psal : Indique si l'utilisateur souhaite lire PSAL (1) ou PSAL_ADJUSTED (2) ou PSAL_ADJUSTED si existe sinon PSAL (3).
         code_inair : Code associe aux donnees dans l'air dans le fichier Rtraj.nc ARGO (699/711/799)
         code_inwater : Code associe aux donnees InWater dans le fichier Rtraj.nc ARGO (690/710)
-        min_pres/max_res : Minimum etMaximum de pression, utilises pour trouver la salinite valide la plus proche de la surface
+        min_pres/max_res : Minimum et Maximum de pression, utilises pour trouver la salinite valide la plus proche de la surface
         
 	En sortie :
  		ds_argo_Rtraj_inair : donnees Rtraj dans l'air (InAir) moyennees par cycle
@@ -154,7 +350,7 @@ def read_argo_data_for_NCEP(num_float,rep_data_argo,which_psal,code_inair,code_i
 	#ds_argo_Rtraj_inwater = ds_argo_Rtraj_inwater.assign(JULD=pd.to_datetime(ds_argo_Rtraj_inwater['JULD_INT'].values))
 
 	# On remplace les donnees de PSAL issues de Rtraj avec  la salinite valide 
-	# la plus proche de la surface issue du Sprof.
+	# la plus proche de la surface issue du Sprof. La salinite et la temperature sont utilisees pour calculer NCEP PPOX.
 	for i_data in range(ds_argo_Rtraj_inair['PSAL'].size): 
 		isok = np.where(cycle_results==ds_argo_Rtraj_inair['CYCLE_NUMBER'][i_data].values)[0]
 		if isok.size > 0:
