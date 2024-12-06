@@ -96,7 +96,7 @@ def read_argo_data_for_WOA(num_float,rep_data_argo,which_var,temp_qc,sal_qc,doxy
         return None
    
     # On garde les variables utiles au calcul de PSAT.
-    ds_argo_Sprof = ds_argo_Sprof[['TEMP_ARGO','TEMP_ARGO_QC','PSAL_ARGO','PSAL_ARGO_QC','DOXY_ARGO','DOXY_ARGO_QC','PRES_ARGO','PRES_ARGO_QC','JULD','LONGITUDE','LATITUDE']]
+    ds_argo_Sprof = ds_argo_Sprof[['TEMP_ARGO','TEMP_ARGO_QC','PSAL_ARGO','PSAL_ARGO_QC','DOXY_ARGO','DOXY_ARGO_QC','PRES_ARGO','PRES_ARGO_QC','JULD','LONGITUDE','LATITUDE','CYCLE_NUMBER']]
 
 
     return ds_argo_Sprof
@@ -303,9 +303,6 @@ def read_argo_data_for_NCEP(num_float,rep_data_argo,which_psal,code_inair,code_i
 	bid = ds_argo_meta['LAUNCH_CONFIG_PARAMETER_NAME'].str.strip()=='CONFIG_OptodeVerticalPressureOffset_dbar'
 	optode_height = ds_argo_meta['LAUNCH_CONFIG_PARAMETER_VALUE'][bid].values
 
-	# Lecture de la date de deploiement du flotteur
-	launch_date = ds_argo_meta['LAUNCH_DATE'].values
-
     
 	# Dans le fichier Rtraj, il n'y a pas de longitude affectee aux donnees PPOX_DOXY dans l'air.
 	# On remplit les donnees de LONGITUDE à partir des donnees LONGITUDE des donnees synthetiques
@@ -379,7 +376,7 @@ Sinon, on prend les donnees PSAL.')
 	ds_argo_Rtraj_inair = ds_argo_Rtraj_inair[['LONGITUDE_ARGO','LATITUDE_ARGO','PPOX_DOXY','TEMP','PSAL','JULD','CYCLE_NUMBER']]
 	ds_argo_Rtraj_inwater = ds_argo_Rtraj_inwater[['LONGITUDE_ARGO','LATITUDE_ARGO','PPOX_DOXY','TEMP','PSAL','JULD','CYCLE_NUMBER']]
 
-	return ds_argo_Rtraj_inair, ds_argo_Rtraj_inwater, optode_height, launch_date
+	return ds_argo_Rtraj_inair, ds_argo_Rtraj_inwater, optode_height
 
 # Fonction de lecture
 def read_argo_data(num_float,rep_data_argo):
