@@ -6,6 +6,7 @@ import glob
 import numpy as np
 import pandas as pd
 from m_fonctions import O2ctoO2p
+import matplotlib.pyplot as plt
 
 def read_argo_launch_date(num_float,rep_data_argo):
     """ 
@@ -337,14 +338,28 @@ def read_argo_data_for_NCEP(num_float,rep_data_argo,which_psal,code_inair,code_i
 	ds_argo_Rtraj_inair['JULD_INT'] = ('N_MEASUREMENT',ds_argo_Rtraj_inair['JULD'].astype(int).values) 
 	ds_argo_Rtraj_inwater['JULD_INT'] = ('N_MEASUREMENT',ds_argo_Rtraj_inwater['JULD'].astype(int).values) 
 
+	plt.figure()
+	plt.plot(ds_argo_Rtraj_inair['CYCLE_NUMBER'],ds_argo_Rtraj_inair['PPOX_DOXY'],'*-b')
+	plt.plot(ds_argo_Rtraj_inwater['CYCLE_NUMBER'],ds_argo_Rtraj_inwater['PPOX_DOXY'],'o-r')
+
 	# Calcul de la mediane  par cycle
 	ds_argo_Rtraj_inair = ds_argo_Rtraj_inair.groupby('CYCLE_NUMBER').median(skipna=True)
 	ds_argo_Rtraj_inwater = ds_argo_Rtraj_inwater.groupby('CYCLE_NUMBER').median(skipna=True)
+
+	plt.plot(ds_argo_Rtraj_inair['CYCLE_NUMBER'],ds_argo_Rtraj_inair['PPOX_DOXY'],'*-c')
+	plt.plot(ds_argo_Rtraj_inwater['CYCLE_NUMBER'],ds_argo_Rtraj_inwater['PPOX_DOXY'],'o-m')
+	plt.grid()
+	_ = plt.legend(['InAir','InWater','MedianInAir','MedianInWater'],loc='upper left',bbox_to_anchor=(1,1))
+	plt.xlabel('CYCLE_NUMBER')
+	plt.ylabel('PPOX')
+	plt.show()
+
 	# On transforme les dates de int en datetime
 	ds_argo_Rtraj_inair['JULD']=('CYCLE_NUMBER',pd.to_datetime(ds_argo_Rtraj_inair['JULD_INT'].values))
 	ds_argo_Rtraj_inwater['JULD']=('CYCLE_NUMBER',pd.to_datetime(ds_argo_Rtraj_inair['JULD_INT'].values))
 	#ds_argo_Rtraj_inair = ds_argo_Rtraj_inair.assign(JULD=pd.to_datetime(ds_argo_Rtraj_inair['JULD_INT'].values))
 	#ds_argo_Rtraj_inwater = ds_argo_Rtraj_inwater.assign(JULD=pd.to_datetime(ds_argo_Rtraj_inwater['JULD_INT'].values))
+
 
 	# On remplace les donnees de PSAL issues de Rtraj avec  la salinite valide 
 	# la plus proche de la surface issue du Sprof. La salinite et la temperature sont utilisees pour calculer NCEP PPOX.

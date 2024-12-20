@@ -5,6 +5,36 @@ from ftplib import FTP
 from m_fonctions import watervapor
 import numpy as np
 # Fonction qui telecharge les donnees NCEP si necessaire
+def download_NCEP_force(annee,ftp_server,rep_ftp,rep_local,ncep_variables):
+    """
+    Cette fonction telecharge les donnees slp/air/rhum NCEP pour les annees où le flotteur est actif.
+    Les donnees sont telechargees uniquement si elles n'existent pas deja dans le repertoire local.
+    En entree :
+        time_argo : Date ARGO
+        ftp_server = serveur ftp NCEP
+        rep_ftp : repertoire NCEP
+        rep_local : repertoire local
+
+    """
+    # Creation repertoire de sortie si besoin.
+    os.makedirs(rep_local, exist_ok=True)
+    
+    # Connexion au serveur ftp (en tant qu'anonyme) et on se deplace dans le repertoire NCEP ou sont les fichiers a telecharger.
+    ftp = FTP(ftp_server)
+    ftp.login()
+    ftp.cwd(rep_ftp)
+    min_year = annee[0]
+    max_year = annee[-1]
+    for iyear in range(min_year,max_year+1,1):
+        for i_var in range(0,len(ncep_variables),1):
+            fic_en_cours = ncep_variables[i_var] + '.' + str(iyear) + '.nc'
+            local_file = os.path.join(rep_local,fic_en_cours)   
+            with open(local_file,"wb") as f:
+                ftp.retrbinary(f"RETR {fic_en_cours}", f.write) 
+            print(f"Fichier {local_file} downloaded")
+
+    ftp.quit()
+    
 def download_NCEP(time_argo,ftp_server,rep_ftp,rep_local,ncep_variables):
     """
     Cette fonction telecharge les donnees slp/air/rhum NCEP pour les annees où le flotteur est actif.
@@ -102,7 +132,7 @@ def calcul_NCEP_PPOX(dsinwater,ds_NCEP_air,ds_NCEP_slp,ds_NCEP_rhum,optode_heigh
     bid=watervapor(dsinwater['TEMP'],dsinwater['PSAL'])
     SSph20 = bid * 1013.25 #mbar, seasurface water vapor pressure
     ncep_phum = watervapor(ds_NCEP_air['air'].values,0) * ds_NCEP_rhum['rhum'].values/100*1013.25 #ncep water vapor pressure
-    ncep_phum_optode_height = (SSph20.values + (ncep_phum - SSph20.values) * np.log(np.abs(optode_height)*100/z0q)/np.log(10/z0q))
+    ncep_phum_optode_height = (SSph20.values + (ncep_phum - SSph20.values) * np.log(np.abs(optode_height)/z0q)/np.log(10/z0q))
     ncep_Po2 = (ds_NCEP_slp['slp'].values - ncep_phum_optode_height) * 0.20946   
 
     return ncep_Po2
