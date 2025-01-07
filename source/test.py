@@ -11,7 +11,7 @@ from scipy.optimize import curve_fit
 if __name__ == "__main__":
 	rep_argo_data = '/Users/chemon/ARGO_NEW/NEW_LOCODOX/data_test/'
 	rep_NCEP_data = '/Users/chemon/ARGO_NEW/LOCODOX/DATA/LOCODOX_EXTERNAL_DATA/NCEP/'
-	num_float = '6902802'
+	num_float = '6902818'
 	z0q = 1e-4
 	ds_argo_inair, ds_argo_inwater,ds_argo_Sprof, optode_height, launch_date = read_argo_data(num_float,rep_argo_data)
 	print(optode_height) 

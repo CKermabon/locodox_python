@@ -9,6 +9,9 @@ __pycache__/
 # NoteBooks
 notebooks/
 
+#Test chatGPT
+test_chatGPT
+
 # Distribution / packaging
 .Python
 build/
