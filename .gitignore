@@ -7,7 +7,7 @@ __pycache__/
 *.so
 
 # NoteBooks
-notebooks/
+#notebooks/
 
 #Test chatGPT
 test_chatGPT

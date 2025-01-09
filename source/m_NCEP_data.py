@@ -5,16 +5,23 @@ from ftplib import FTP
 from m_fonctions import watervapor
 import numpy as np
 # Fonction qui telecharge les donnees NCEP si necessaire
-def download_NCEP_force(annee,ftp_server,rep_ftp,rep_local,ncep_variables):
-    """
-    Cette fonction telecharge les donnees slp/air/rhum NCEP pour les annees où le flotteur est actif.
-    Les donnees sont telechargees uniquement si elles n'existent pas deja dans le repertoire local.
-    En entree :
-        time_argo : Date ARGO
-        ftp_server = serveur ftp NCEP
-        rep_ftp : repertoire NCEP
-        rep_local : repertoire local
+def download_NCEP_force(annee: list,ftp_server: str,rep_ftp: str,rep_local:str,ncep_variables:list)->None:
+    """ Function to download NCEP data 
 
+    Parameters
+    ----------
+    annee : list
+        year to download
+    ftp_server : str
+        Ncep ftp server
+    rep_ftp : str
+        directory to download the NCEP files
+    ncep_variables : list
+        NCEP variables name to download
+
+    Returns
+    -------
+    None
     """
     # Creation repertoire de sortie si besoin.
     os.makedirs(rep_local, exist_ok=True)
@@ -31,7 +38,7 @@ def download_NCEP_force(annee,ftp_server,rep_ftp,rep_local,ncep_variables):
             local_file = os.path.join(rep_local,fic_en_cours)   
             with open(local_file,"wb") as f:
                 ftp.retrbinary(f"RETR {fic_en_cours}", f.write) 
-            print(f"Fichier {local_file} downloaded")
+            print(f"File {local_file} downloaded")
 
     ftp.quit()
     

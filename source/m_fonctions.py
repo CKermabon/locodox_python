@@ -1,5 +1,6 @@
 # Definition de fonctions utiles
 import numpy as np
+import xarray as xr
 
 #########################################################
 # Fonctions permettant d'estimer le gain et/ou la derive.
@@ -42,15 +43,22 @@ def watervapor(T,S):
 ##############################
 # Fonctions de conversion O2.
 ##############################
-def umolkg_to_umolL(O2mmolKg,units,ana_dens=1000):
-    """
-    Cette fonction convertit l'oxygene ARGO (en micromole/kg) en micromole/L.
-    En entree :
-        O2mmolKg : O2 en micromole/Kg
-        an_dens : densite potentielle a 0.
+def umolkg_to_umolL(O2mmolKg: xr.DataArray,units:str,ana_dens: np.array =1000) -> xr.DataArray:
+    """ Function to convert Oxygen from umol/Kg to umol/L
 
-    En sortie :
-        O2mmolL : O2 en micromole par Litre.
+        Parameters
+        ----------
+        O2mmolKg : xr.DataArray
+            Oxygen in umol/Kg
+        units : str
+            Units for O2mmolKg (must be micromole/kg)
+        ana_dens : np.array
+            potential density at 0
+
+        Returns
+        -------
+        O2mmolL : np.DataArray
+            Oxygen in units umol/L
     """
     if units == 'micromole/kg':
         O2mmolL = O2mmolKg / (1000 / ana_dens) 
@@ -60,11 +68,23 @@ def umolkg_to_umolL(O2mmolKg,units,ana_dens=1000):
         return None
         
 
-def O2ctoO2p(O2conc,T,S,P=0):
-    """
-    Cette fonction convertit les donnees de concentration O2 (en umol/L) en pression partielle O2 a partir de T (temperature) et S (salinite)
-    Si P (pression) n'est pas fournie, on la force a 0
-    Fonction issue de Locodox Matlab
+def O2ctoO2p(O2conc : xr.DataArray,T: xr.DataArray,S:xr.DataArray,P: int=0) -> xr.DataArray:
+    """ Function to convert oxygen concentration in umol/L into oxygen partial pressure
+
+    Parameters
+    -----------
+        O2conc : xr.DataArray
+            Oxygen concentration in umol/L
+        T : xr.DataArray
+            Temperature
+        S : xr.DataArray
+            Salinity
+        P : int (default : 0)
+            Pressure
+
+    Returns
+    --------
+        pO2 : xr.DataArray
     """
     xO2     = 0.20946 # mole fraction of O2 in dry air (Glueckauf 1951)
     pH2Osat = 1013.25*(np.exp(24.4543-(67.4509*(100/(T+273.15)))-(4.8489*np.log(((273.15+T)/100)))-0.000544*S)) # saturated water vapor in mbar 
@@ -78,11 +98,27 @@ def O2ctoO2p(O2conc,T,S,P=0):
     return pO2
 
 
-def O2stoO2p(O2sat,T,S,P=0,P_atm=1013.25):
-    """
-    Cette fonction convertit les donnees de pourcentage de saturation en pression partielle O2 a partir de T (temperature) et S (salinite)
-    ainsi que P (pression hydrostatique. 0 par defaut) et P_atm (pression atmospherique. 1013.25 mbar par defaut.
-    Fonction issue de Locodox Matlab
+def O2stoO2p(O2sat: xr.DataArray,T: xr.DataArray,S:xr.DataArray,P:int =0,P_atm:int =1013.25) -> xr.DataArray:
+    """ Function to convert Oxygen saturation % into partial pressure
+
+        Parameters
+        -----------
+            O2sat : xr.DataArray
+                Saturation Oxygen pourcentage
+            T : xr.DataArray
+                Temperature
+            S : xr.DataArray
+                Salinity
+            P : int
+                Pressure (default : 0)
+            P_atm : int
+                atmospheric pressure (default : 1013.25)
+                
+        Returns
+        --------
+            pO2 : xr.DataArray
+                Oxygen partial pressure
+            
     """
     xO2     = 0.20946 # mole fraction of O2 in dry air (Glueckauf 1951)
     pH2Osat = 1013.25*(np.exp(24.4543-(67.4509*(100/(T+273.15)))-(4.8489*np.log(((273.15+T)/100)))-0.000544*S)); # saturated water vapor in mbar
@@ -93,11 +129,27 @@ def O2stoO2p(O2sat,T,S,P=0,P_atm=1013.25):
 
     return pO2
 
-def O2ctoO2s(O2conc,T,S,P=0,P_atm=1013.25):
-    """
-    Cette fonction convertit les donnees de concentration O2 (en umol/L) en pourcentage de saturation a partir de T (temperature), S (salinite)
-    ainsi que P (pression hydrostatique. O par defaut) et P_atm (pression atmospherique. 1013.25 mbar par defaut.
-    Fonction issue de Locodox Matlab.
+def O2ctoO2s(O2conc:xr.DataArray,T: xr.DataArray,S: xr.DataArray,P: int =0,P_atm: int=1013.25)-> xr.DataArray:
+    """ Function to convert oxygen concentration (in umol/L) into oxygen saturation pourcentage
+
+        Parameters
+        ----------
+            O2conc : xr.DataArray
+                Oxygen concentration iin umol/L
+            T : xr.DataArray
+                Temperature
+            S : xr.DataArray
+                Salinity
+            P : int
+                Pressure (default : 0)
+            P_atm : int
+                atmospheric pressure (default : 1013.25)   
+                
+        Returns
+        -------
+            O2sat : xr.DataArray
+                Oxygen saturation pourcentage
+    
     """
     pH2Osat = 1013.25*(np.exp(24.4543-(67.4509*(100/(T+273.15)))-(4.8489*np.log(((273.15+T)/100)))-0.000544*S)) # saturated water vapor in mbar
     sca_T   = np.log((298.15-T)/(273.15+T)) # scaled temperature for use in TCorr and SCorr
@@ -111,10 +163,24 @@ def O2ctoO2s(O2conc,T,S,P=0,P_atm=1013.25):
     return O2sat
 
 def O2ptoO2c(pO2,T,S,P=0):
-    """
-    Fonction permettant de convertir la pression partielle O2 en concentration O2 (en mmol/L)
-    a partir de la temperature, la salinite et la pression hydrostatique (a 0 par defaut).
-    Fonction issue de Locodox Matlab
+    """ Function to convert oxygen paertial pressure into oxygen concentration in umol/L
+
+    Parameters
+    ----------
+        pO2 : xr.DataArray
+            oxygen partial pressure
+        T : xr.DataArray
+                Temperature
+        S : xr.DataArray
+                Salinity
+        P : int
+                Pressure (default : 0)
+                
+    Returns
+    -------
+        O2conc : xr.DataArray
+            Oxygen concentration in umol/L
+    
     """
     xO2     = 0.20946 # mole fraction of O2 in dry air (Glueckauf 1951)
     pH2Osat = 1013.25*(np.exp(24.4543-(67.4509*(100/(T+273.15)))-(4.8489*np.log(((273.15+T)/100)))-0.000544*S)) #saturated water vapor in mbar
@@ -130,22 +196,45 @@ def O2ptoO2c(pO2,T,S,P=0):
 ###################################
 # Fonction d'interpolation sur une grille reguliere en pression.
 ###################################
-def interp_pres_grid(min_pres,max_pres,nb_profil,var_to_interpol,ds,var_name_pres):
+def interp_pres_grid(min_pres : int,max_pres : int,var_to_interpol : list, ds : xr.Dataset,var_name_pres : str, var_dim_depth : str) -> xr.Dataset:
+    """ Function to interpolate data on a regular pressure
+
+    Parameters
+    ----------
+        min_pres/Max_pres : int
+            Minimum and amximum pressure
+        var_to_interpol : list
+            List of variables from the dataset to interpolate
+        ds : xr.Dataset
+            Dataset
+        var_name_pres : str
+            The name of the pressure variable in the dataset
+
+    Returns
+        ds_interpol_var : xr.Dataset
+            Xarray dataset with data interpolated on a regular pressure grid.
+
+    """
+
+    nb_profil = len(ds['N_PROF'])
     interpol_var = {}
     new_pres = np.arange(min_pres,max_pres+1,1)
     for var in var_to_interpol:
-        print(f'Interpolation de la variable {var} sur grille reguliere en pression')
+        print(f'Interpolation variable {var} on a regular pressure grid')
         interpol_data = np.zeros(shape=(nb_profil,max_pres-min_pres+1))
-        for i_cycle in (range(0,nb_profil)):
-            data_en_cours = ds[var][i_cycle,:]
+        for i_prof in (range(0,nb_profil)):
+            data_en_cours = ds[var].isel(N_PROF=i_prof)
             isok = np.isfinite(data_en_cours)
             nb_indices = np.count_nonzero(isok)
             if nb_indices>0:
                 #print(data_en_cours[isok])
                 #print(ds[var_name_pres][i_cycle,isok].values)
-                interpol_data[i_cycle,:] = np.interp(new_pres,ds[var_name_pres][i_cycle,isok].values,data_en_cours[isok])
+                interpol_data[i_prof,:] = np.interp(new_pres,ds[var_name_pres].isel(N_PROF=i_prof,N_LEVELS=isok).values,data_en_cours[isok])
             else:
-                interpol_data[i_cycle,:] = np.nan
+                interpol_data[i_prof,:] = np.nan
         interpol_var[var] = interpol_data  
-    return interpol_var
+        dims = ('N_PROF','N_LEVELS')
+        ds_interpol_var = xr.Dataset({var: (dims, data) for var, data in interpol_var.items()})
+        
+    return ds_interpol_var
     
