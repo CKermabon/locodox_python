@@ -32,10 +32,20 @@ def model_Gain_Derive_CarryOver(X,G,C,D):
 #
 # Fonction de calcul de la vapeur d'eau.
 #
-def watervapor(T,S):
-	"""
-	Cette fonction calcule la vapeur d'eau a partir de la temperature et salinite
-    Fonction issue de Locodox Matlab
+def watervapor(T : xr.DataArray,S: xr.DataArray)->xr.DataArray:
+	""" Function to calculate watervapor from Temperature and Salinity
+
+    Parameters
+    ----------
+    T : xr.DataArray
+        Temperature
+    S : xr.DataArray
+        Salinity
+
+    Returns
+    -------
+    pw : xr.DataArray
+        WaterVapor
 	"""
 	pw=(np.exp(24.4543-(67.4509*(100/(T+273.15)))-(4.8489*np.log(((273.15+T)/100)))-0.000544*S))
 	return pw	
@@ -85,6 +95,7 @@ def O2ctoO2p(O2conc : xr.DataArray,T: xr.DataArray,S:xr.DataArray,P: int=0) -> x
     Returns
     --------
         pO2 : xr.DataArray
+            Oxygen partial pressure
     """
     xO2     = 0.20946 # mole fraction of O2 in dry air (Glueckauf 1951)
     pH2Osat = 1013.25*(np.exp(24.4543-(67.4509*(100/(T+273.15)))-(4.8489*np.log(((273.15+T)/100)))-0.000544*S)) # saturated water vapor in mbar 
@@ -237,4 +248,26 @@ def interp_pres_grid(min_pres : int,max_pres : int,var_to_interpol : list, ds : 
         ds_interpol_var = xr.Dataset({var: (dims, data) for var, data in interpol_var.items()})
         
     return ds_interpol_var
+
+def diff_time_in_days(juld_data : np.ndarray, launch_date : np.datetime64) -> np.ndarray:
+    """ Function to calculate a difference tile in days
+
+    Parameters
+    ----------
+    juld_data : np.ndarray
+        JULD values
+    launch_date : np.datetime64
+        Date from which we calculate the number of days
+
+    Returns
+    -------
+    delta_T : np.ndarray
+        Difference (juld_data - launch_date) in days
+
+    """
+    #delta_T = (juld_data - launch_date)
+    #delta_T = delta_T.astype(float)
+    #delta_T = delta_T/1e9/86400 # Difference en jour
+    delta_T = (juld_data - launch_date) / np.timedelta64(1,'D')
+    return delta_T
     
