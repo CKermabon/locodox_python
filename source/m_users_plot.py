@@ -6,6 +6,7 @@ import cartopy.feature as cfeature
 import xarray as xr
 import numpy as np
 import seawater as sw
+from m_users_fonctions import O2ctoO2s, diff_time_in_days
 
 def plot_WMO_position(ds_WMO: xr.Dataset,ds_bathy: xr.Dataset,depths: np.ndarray,extend_val: float) -> None :
     """ Function to plot longitude/latitude with bathymetry
@@ -262,3 +263,224 @@ def plot_QC_cycle(ds_WMO : xr.Dataset,strvar : str='') -> None :
     plt.show()
 
     return None
+
+def plot_ppox_Inair_Inwater_Ncep(dsair : xr.Dataset, dsinwater : xr.Dataset, ncep_data : np.ndarray) -> None:
+    """ Function to plot InAir/InWater PPOX compared to NCEP PPOX
+
+    Parameters
+    ----------
+    dsair : xr.Dataset
+        InAIR data
+    dsinwater : xr.Dataset
+        InWater data
+    ncep_data : np.ndarray
+        NCEP PPOX
+
+    Returns
+    -------
+    None
+    A plot is created
+    """
+    plt.figure()
+    plt.plot(dsair['CYCLE_NUMBER'],ncep_data,'.-k')
+    plt.plot(dsair['CYCLE_NUMBER'],dsair['PPOX_DOXY'],'.b-')
+    plt.plot(dsinwater['CYCLE_NUMBER'],dsinwater['PPOX_DOXY'],'.r-')
+    plt.grid()
+    plt.xlabel('CYCLE_NUMBER')
+    plt.ylabel('PPOX')
+    _=plt.legend(['NCEP','INAIR','INWATER'])
+
+    return None
+
+def plot_cmp_corr_NCEP(dict_corr : dict, dsair : xr.Dataset,ncep_data : np.ndarray,delta_T : np.ndarray) -> None:
+    """ Function to compare different PPOX dsair correction
+
+    Parameters
+    ----------
+    dict_corr : dict
+        dict of Correction (Name/Value).
+    dsair : xr.Dataset
+        Contains InAir data
+    ncep_data : np.ndarray
+        NCEP PPOX
+    delta_T : np.ndarray
+        For each data : (JULD - launch_date)
+
+    Returns
+    -------
+    None
+    A plot is created
+    """
+    norm = plt.Normalize(vmin=0, vmax=len(dict_corr))
+    cmap = matplotlib.colormaps.get_cmap('jet')  # Dégradé bleu -> rouge
+    colors = cmap(norm(np.arange(0,len(dict_corr))))  # Couleurs pour chaque profil
+
+    plt.figure()
+    plt.subplot(2,1,1)
+    plt.plot(dsair['CYCLE_NUMBER'],ncep_data,'.-k',markersize=1,label='NCEP')
+    plt.plot(dsair['CYCLE_NUMBER'],dsair['PPOX_DOXY'],'.--k',markersize=1,label='RAW')
+
+    plt.subplot(2,1,2)
+    plt.plot(delta_T,ncep_data/dsair['PPOX_DOXY'],'.-k',label='NCEP')
+
+    i_coul = -1
+    for corr in dict_corr.items():
+        i_coul = i_coul + 1
+        val_corr = corr[1]
+        if len(val_corr)==1:
+            bid = val_corr[0]*dsair['PPOX_DOXY']
+        else:
+            bid = (val_corr[0]*(1+val_corr[1]/100*delta_T/365))*dsair['PPOX_DOXY']
+        label_corr = f'{corr}'  # Nom personnalisé de la courbe dans la légende
+        plt.subplot(2,1,1)
+        plt.plot(dsair['CYCLE_NUMBER'],bid,'.-',color=colors[i_coul],markersize=1,label=corr[0])
+        plt.subplot(2,1,2)
+        plt.plot(delta_T,bid/dsair['PPOX_DOXY'],'.-',color=colors[i_coul],markersize=1,label=corr[0])
+    
+    plt.subplot(2,1,1)    
+    plt.grid()
+    plt.xlabel('CYCLE_NUMBER')
+    plt.ylabel('PPOX')
+    leg=plt.legend(draggable=True) 
+#_=plt.legend() #loc='lower left', bbox_to_anchor=(1, 0))
+
+    plt.subplot(2,1,2)    
+    plt.grid()
+    plt.xlabel('JULD')
+    plt.ylabel('Time Drift Gain')
+    #leg=plt.legend(draggable=True) 
+
+    return None
+
+def plot_cmp_corr_WOA(dict_corr : dict, ds_argo_interp : xr.Dataset, ds_woa_interp : xr.Dataset, delta_T : np.ndarray)-> None:
+    """ Function to compare different correction with PSATWOA
+
+    Parameters
+    -----------
+    dict_corr : dict
+        dict of correction (Name/Value)
+    ds_argo_interp : xr.Dataset
+        Contains ARGO data interpolated on a regular grid (to calculate the mean of ARGO PSAT on ths grid)
+    ds_woa_interp : xr.Dataset
+        Contains WOA DATA interpolated on the same regular grid (to calculate the mean of WOA PASAT on ths grid)
+    delta_T : np.ndarray
+        Difference (JULD - launch_date)
+
+    Returns
+    -------
+    None
+    A plot is created
+    """
+    
+    psatargo = O2ctoO2s(ds_argo_interp['DOXY_ARGO'],ds_argo_interp['TEMP_ARGO'],ds_argo_interp['PSAL_ARGO'])
+    psatargo_mean = psatargo.mean(dim='N_LEVELS')
+    psatWOA_mean = ds_woa_interp['Psatwoa'].mean(dim='N_LEVELS')
+
+    norm = plt.Normalize(vmin=0, vmax=len(dict_corr))
+    cmap = matplotlib.colormaps.get_cmap('jet')  # Dégradé bleu -> rouge
+    colors = cmap(norm(np.arange(0,len(dict_corr))))  # Couleurs pour chaque profil
+
+    plt.figure()
+    plt.plot(delta_T,psatWOA_mean,'.-k',label='WOA')
+    plt.plot(delta_T,psatargo_mean,'.--k',label='RAW')
+
+    i_coul = -1
+    for corr in dict_corr.items():
+        i_coul = i_coul + 1
+        val_corr = corr[1]
+        if len(val_corr)==1:
+            bid = val_corr[0]*ds_argo_interp['DOXY_ARGO']
+        else:
+            tab_delta_T = np.vstack([delta_T]*len(ds_argo_interp['N_LEVELS'])).transpose()
+            bid = (val_corr[0]*(1+val_corr[1]/100*tab_delta_T/365))*ds_argo_interp['DOXY_ARGO']
+        psatargo_corr = O2ctoO2s(bid,ds_argo_interp['TEMP_ARGO'],ds_argo_interp['PSAL_ARGO'])
+        psatargo_corr_mean = psatargo_corr.mean(dim='N_LEVELS')
+        label_corr = f'{corr}'  # Nom personnalisé de la courbe dans la légende
+        plt.plot(delta_T,psatargo_corr_mean,'.-',color=colors[i_coul],markersize=1,label=corr[0])
+    plt.grid()
+    plt.xlabel('DELTA JULD')
+    plt.ylabel('PSAT')
+    _=plt.legend(draggable=True)
+
+    return None
+
+def plot_cmp_ARGO_CTD(dsctd : xr.Dataset, dsargo : xr.Dataset,ds_cycle : xr.Dataset, dict_corr : dict, launch_date : np.datetime64) -> None:
+    """ Function to compare an ARGO DOXY profile with a CTD Doxy profile
+
+    Parameters
+    ----------
+    dsctd : xr.Dataset
+     Contains OXYK (O2 in mmol/Kg) and PRES
+    dsargo : xr.Dataset
+     Contains Data from Sprof ARGO Netcdf file
+    ds_cycle : xr.Dataset
+     Cycle to compare
+    dict_corr : dict
+     Correction to compare
+    launch_date : np.datetime64
+     Launch Date
+
+     Returns
+     -------
+     None
+     A plot is created
+     """
+    
+    norm = plt.Normalize(vmin=0, vmax=len(dict_corr))
+    cmap = matplotlib.colormaps.get_cmap('jet')  # colormap
+    colors = cmap(norm(np.arange(0,len(dict_corr))))  # Color
+    
+    delta_T_cycle = diff_time_in_days(ds_cycle['JULD'].values,launch_date)
+    tab_delta_T = np.tile(delta_T_cycle,(1,len(ds_cycle['N_LEVELS'])))
+    #tab_delta_T = np.vstack([delta_T_cycle1]*len(ds_cycle1['N_LEVELS'])).transpose()
+
+    plt.figure()
+    plt.plot(dsctd['OXYK'].isel(N_PROF=0), dsctd['PRES'].isel(N_PROF=0), '.-b', label='CTD')[0]
+    plt.plot(ds_cycle['DOXY'].isel(N_PROF=0),ds_cycle['PRES'].isel(N_PROF=0),'.-k',label='RAW')[0]
+
+    i_coul = -1
+    for corr in dict_corr.items():
+        i_coul = i_coul + 1
+        val_corr = corr[1]    
+        if len(val_corr)==1:
+            bid = val_corr[0]*ds_cycle['DOXY']
+        else:
+            bid = (val_corr[0]*(1+val_corr[1]/100*tab_delta_T/365))*ds_cycle['DOXY']
+        plt.plot(bid.isel(N_PROF=0),ds_cycle['PRES'].isel(N_PROF=0),'.-',color=colors[i_coul],label=corr[0])[0]
+    
+    plt.grid()
+    plt.gca().invert_yaxis()
+    plt.xlabel('DOXY')
+    plt.ylabel('PRES')
+    _=plt.legend(draggable=True)
+
+    return None
+
+def plot_cmp_corr_oxy_woa(ds_argo_Sprof : xr.Dataset, ds_woa : xr.Dataset) -> None :
+    """ Function to plot RAW and Corrected DOXY compared to DOXY WOA
+
+    Parameters
+    ----------
+    ds_argo_Sprof : xr.Dataset
+     Data from Sprof ARGO Netcdf file
+    ds_woa : xr.Dataset
+     Data from WOA interpolated on ARGO position/time
+
+     Returns
+     -------
+     None
+     A plot is created
+     """
+    
+    plt.figure()
+    h1=plt.plot(ds_argo_Sprof['DOXY_ADJUSTED'],ds_argo_Sprof['PRES'],'+-r',label='ADJUSTED')[0]
+    h2=plt.plot(ds_argo_Sprof['DOXY'],ds_argo_Sprof['PRES'],'x-b',label='RAW')[0]
+    h3=plt.plot(ds_woa['doxywoa'],ds_woa['preswoa'],'o-k',label='WOA')[0]
+    plt.grid()
+    plt.gca().invert_yaxis()
+    plt.xlabel('DOXY')
+    plt.ylabel('PRES')
+    _=plt.legend([h1,h2,h3],['ADJUSTED','RAW','WOA'],draggable=True)
+
+    return None
+    

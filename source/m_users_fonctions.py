@@ -2,6 +2,7 @@
 import numpy as np
 import xarray as xr
 
+
 #########################################################
 # Fonctions permettant d'estimer le gain et/ou la derive.
 #########################################################
@@ -270,4 +271,29 @@ def diff_time_in_days(juld_data : np.ndarray, launch_date : np.datetime64) -> np
     #delta_T = delta_T/1e9/86400 # Difference en jour
     delta_T = (juld_data - launch_date) / np.timedelta64(1,'D')
     return delta_T
+
+def corr_data(ds_argo_Sprof : xr.Dataset,corr_final : np.ndarray,launch_date : np.datetime64)->xr.Dataset:
+    """ Function to apply correction on DOXY
+
+    Parameters
+    ----------
+    ds_argo_Sprof : xr.Dataset
+     Contains DOXY/PRES/DOXY_ADJUSTED Variables
+    corr_final : np.ndarray
+     Contains Gain and Drift to apply
+
+     Returns
+     -------
+      ds_argo_Sprof : xr.Dataset
+       Dataset with DOXY_ADJUSTED
+    """
+    delta_T_Sprof = diff_time_in_days(ds_argo_Sprof['JULD'].values,launch_date)
+    for i_prof in range(1,len(ds_argo_Sprof['CYCLE_NUMBER'])):
+        tab_delta_T= np.repeat(delta_T_Sprof[i_prof],len(ds_argo_Sprof['N_LEVELS']))
+        #tab_delta_T= np.tile(delta_T_Sprof[i_prof],(1,len(ds_argo_Sprof['N_LEVELS'])))
+        #print(tab_delta_T.shape)
+        new_values = (corr_final[0] * (1+corr_final[1]/100 * tab_delta_T/365))* ds_argo_Sprof['DOXY'].isel(N_PROF=i_prof) 
+        ds_argo_Sprof['DOXY_ADJUSTED'].loc[dict(N_PROF=i_prof)] = new_values
+
+    return ds_argo_Sprof
     
