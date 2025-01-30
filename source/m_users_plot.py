@@ -88,7 +88,7 @@ def plot_WMO_position(ds_WMO: xr.Dataset,ds_bathy: xr.Dataset,depths: np.ndarray
     ax.set_ylabel('LATITUDE')
     ax.gridlines(draw_labels=True, linewidth=0.5, color='gray', alpha=0.7, linestyle='-')
 
-    plt.title(f"{ds_WMO['PLATFORM_NUMBER']} : Region where the floats derived") 
+    plt.title(f"{ds_WMO['PLATFORM_NUMBER'].isel(N_PROF=0).values} : Region where the floats derived") 
     plt.show()
 
     return None
