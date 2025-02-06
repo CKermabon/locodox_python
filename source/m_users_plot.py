@@ -444,8 +444,12 @@ def plot_cmp_ARGO_CTD(dsctd : xr.Dataset, dsargo : xr.Dataset,ds_cycle : xr.Data
         val_corr = corr[1]    
         if len(val_corr)==1:
             bid = val_corr[0]*ds_cycle['DOXY']
+        elif len(val_corr)==2:
+            bid = (val_corr[0]*(1+val_corr[1]/100*tab_delta_T/365))*ds_cycle['DOXY']
         else:
             bid = (val_corr[0]*(1+val_corr[1]/100*tab_delta_T/365))*ds_cycle['DOXY']
+            bid = (1 + val_corr[2] * ds_cycle['PRES']/1000) * bid  
+            
         plt.plot(bid.isel(N_PROF=0),ds_cycle['PRES'].isel(N_PROF=0),'.-',color=colors[i_coul],label=corr[0])[0]
     
     plt.grid()

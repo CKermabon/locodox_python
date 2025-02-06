@@ -5,31 +5,7 @@ import xarray as xr
 
 #########################################################
 # Fonctions permettant d'estimer le gain et/ou la derive.
-#########################################################
-def model_Gain(X,G):
-    """
-    Modele utilise via curvefit pour estimer un gain.
-    """
-    return G * X 
-
-def model_Gain_Derive(X,G,D):
-    """
-    Modele utilise via curvefit pour estimer un gain et une derive
-    """
-    return (G * (1 + (D * X[1])/(365*100)) * X[0] )
-
-def model_Gain_CarryOver(X,G,C):
-    """
-    Modele utilise via curvefit pour estimer un gain avec prise en compte CarryOver (utile pour calcul via donnees dans l'air NCEP)
-    """
-    return G * (X[0] - C * X[1]) / (1 - C) # C : Carry-over
-
-def model_Gain_Derive_CarryOver(X,G,C,D):
-    """
-    Modele utilise via curvefit pour estimer un gain et une derive avec prise en compte CarryOver (utile pour calcul via donnees dans l'air NCEP)
-    """
-    return (G / (1-C) * (1 + D / 100 * X[2]/365) * (X[0] - C * X[1]) )
-
+########################################################
 #
 # Fonction de calcul de la vapeur d'eau.
 #
@@ -292,7 +268,11 @@ def corr_data(ds_argo_Sprof : xr.Dataset,corr_final : np.ndarray,launch_date : n
         tab_delta_T= np.repeat(delta_T_Sprof[i_prof],len(ds_argo_Sprof['N_LEVELS']))
         #tab_delta_T= np.tile(delta_T_Sprof[i_prof],(1,len(ds_argo_Sprof['N_LEVELS'])))
         #print(tab_delta_T.shape)
-        new_values = (corr_final[0] * (1+corr_final[1]/100 * tab_delta_T/365))* ds_argo_Sprof['DOXY'].isel(N_PROF=i_prof) 
+        new_values = (corr_final[0] * (1+corr_final[1]/100 * tab_delta_T/365))* ds_argo_Sprof['DOXY'].isel(N_PROF=i_prof)
+        
+        if len(corr_final)==3:
+            new_values = (1 + corr_final[2] *ds_argo_Sprof['PRES'].isel(N_PROF=i_prof)/1000) * new_values
+            
         ds_argo_Sprof['DOXY_ADJUSTED'].loc[dict(N_PROF=i_prof)] = new_values
 
     return ds_argo_Sprof
