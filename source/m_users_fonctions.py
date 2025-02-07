@@ -217,7 +217,7 @@ def interp_pres_grid(min_pres : int,max_pres : int,var_to_interpol : list, ds : 
             if nb_indices>0:
                 #print(data_en_cours[isok])
                 #print(ds[var_name_pres][i_cycle,isok].values)
-                interpol_data[i_prof,:] = np.interp(new_pres,ds[var_name_pres].isel(N_PROF=i_prof,N_LEVELS=isok).values,data_en_cours[isok])
+                interpol_data[i_prof,:] = np.interp(new_pres,ds[var_name_pres].isel(N_PROF=i_prof,N_LEVELS=isok).values,data_en_cours[isok],right=np.nan,left=np.nan)
             else:
                 interpol_data[i_prof,:] = np.nan
         interpol_var[var] = interpol_data  
