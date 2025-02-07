@@ -64,8 +64,12 @@ def get_argo_optode_height(ds_argo: xr.Dataset) -> np.ndarray:
             Optode Vertical Pressure
     """
     bid = ds_argo['LAUNCH_CONFIG_PARAMETER_NAME'].str.strip()=='CONFIG_OptodeVerticalPressureOffset_dbar'
-    optode_height = ds_argo['LAUNCH_CONFIG_PARAMETER_VALUE'][bid].values    
-    return float(optode_height[0])
+    optode_height = ds_argo['LAUNCH_CONFIG_PARAMETER_VALUE'][bid].values 
+    if len(optode_height)==0:
+        val = -0.20
+    else:
+        val = optode_height[0]
+    return float(val)
     
 # Fonctions de lecture des donnees ARGO en vue d'une correction via WOA
 def get_argo_data_for_WOA(ds_argo_Sprof: xr.Dataset, pres_qc: list, temp_qc: list,sal_qc: list,doxy_qc: list, which_var: int = 3) -> xr.Dataset:
