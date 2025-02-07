@@ -174,27 +174,36 @@ def dict_to_xarray(data : dict)->xr.Dataset:
 
     return ds
 
-def corr_file(fic_en_cours : str,launch_date : np.datetime64,gain : np.float64,derive:np.float64,comment_corr : str,coef_corr : str,eq_corr : str,fic_res : str)->None:
+def corr_file(fic_en_cours : str,fic_res : str,launch_date : np.datetime64,comment_corr :str,coef_corr : str,eq_corr : str,gain_final : np.float64 = 1,drift_final : np.float64=0,coef_pres:np.float64 = 0) -> None : 
     """ Function to update the B_monoprofile with the DOXY_ADJUSTED
 
     Parameters
     ----------
     fic_en_cours : str
         Original file
+    fic_res : str
+        Result file
     launch_date : np.datetime64
         Launch Date
-    gain : np.float
-        Slope to apply
-    derive : np.float
-        Drift to apply
     comment_corr : str
         Information about DOXY Correction
     coef_corr : str
         Correction Coefficient
     eq_corr : str
         Correction Equation
-    fic_res : str
-        Result file
+    gain_final : np.float
+        Slope to apply (default = 1)
+    drift_final : np.float
+        Drift to apply (default = 0)
+    coef_pres : np.float
+        Correction for pressure effect (default = 0)
+
+    Returns
+    -------
+    None
+    The file fic_res is created, containing the DOXY_ADJUSTED
+    
+    
 
     Returns
     -------
@@ -217,7 +226,8 @@ def corr_file(fic_en_cours : str,launch_date : np.datetime64,gain : np.float64,d
 #            dsargo_oxy[vname].attrs["_FillValue"] = dsargo_oxy[vname].attrs["_FillValue"].decode("utf8")
 
     for i_prof in range(nb_profil):
-        O2_ARGO_corr = (gain * (1+derive/100 * delta_T[i_prof,:]/365))* dsargo_oxy['DOXY'].isel(N_PROF=i_prof)
+        O2_ARGO_corr = (gain_final * (1+drift_final/100 * delta_T[i_prof,:]/365))* dsargo_oxy['DOXY'].isel(N_PROF=i_prof)
+        O2_ARGO_corr = O2_ARGO_corr * (1 + coef_pres * dsargo_oxy['PRES'].isel(N_PROF=i_prof)/1000)
         dsargo_oxy['DOXY_ADJUSTED'].loc[dict(N_PROF=i_prof)] =  O2_ARGO_corr 
         #dsargo_oxy['DOXY_ADJUSTED_ERROR'].loc[dict(N_PROF=i_prof)] =  O2_ARGO_corr # A completer
     
