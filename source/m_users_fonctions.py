@@ -276,4 +276,22 @@ def corr_data(ds_argo_Sprof : xr.Dataset,corr_final : np.ndarray,launch_date : n
         ds_argo_Sprof['DOXY_ADJUSTED'].loc[dict(N_PROF=i_prof)] = new_values
 
     return ds_argo_Sprof
+
+def copy_attr(ds1 : xr.Dataset, ds2 : xr.Dataset) -> xr.Dataset:
+    """ Function to copy attribut for each variable in ds1 from attribut form ds2
+
+    Parameters
+    ----------
+    ds1 : xr.Dataset
+    ds2 : xr.Dataset
+
+    Returns
+    --------
+    ds2 : xr.Dataset
+    For each variable in ds2, the attributs are copied from the same variable in ds1
+    """
+    for var in ds2.data_vars :
+        ds2[var].attrs = ds1[var].attrs    
+
+    return ds2
     

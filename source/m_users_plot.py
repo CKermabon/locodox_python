@@ -372,7 +372,7 @@ def plot_cmp_corr_WOA(dict_corr : dict, ds_argo_interp : xr.Dataset, ds_woa_inte
     A plot is created
     """
     ana_dens = sw.pden(ds_argo_interp['PSAL_ARGO'],ds_argo_interp['TEMP_ARGO'],ds_argo_interp['PRES_ARGO'],0)
-    O2_umolL = umolkg_to_umolL(ds_argo_interp['DOXY_ARGO'],'micromole/kg',ana_dens)
+    O2_umolL = umolkg_to_umolL(ds_argo_interp['DOXY_ARGO'],ds_argo_interp['DOXY_ARGO'].units,ana_dens)
     psatargo = O2ctoO2s(O2_umolL,ds_argo_interp['TEMP_ARGO'],ds_argo_interp['PSAL_ARGO'])
     psatargo_mean = psatargo.mean(dim='N_LEVELS')
     psatWOA_mean = ds_woa_interp['Psatwoa'].mean(dim='N_LEVELS')
@@ -395,7 +395,7 @@ def plot_cmp_corr_WOA(dict_corr : dict, ds_argo_interp : xr.Dataset, ds_woa_inte
             tab_delta_T = np.vstack([delta_T]*len(ds_argo_interp['N_LEVELS'])).transpose()
             bid = (val_corr[0]*(1+val_corr[1]/100*tab_delta_T/365))*ds_argo_interp['DOXY_ARGO']
             
-        O2_umolL = umolkg_to_umolL(bid,'micromole/kg',ana_dens)
+        O2_umolL = umolkg_to_umolL(bid,ds_argo_interp['DOXY_ARGO'].units,ana_dens)
         psatargo_corr = O2ctoO2s(O2_umolL,ds_argo_interp['TEMP_ARGO'],ds_argo_interp['PSAL_ARGO'])
         psatargo_corr_mean = psatargo_corr.mean(dim='N_LEVELS')
         label_corr = f'{corr}'  # Nom personnalisé de la courbe dans la légende
