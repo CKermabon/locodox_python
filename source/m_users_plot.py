@@ -438,8 +438,8 @@ def plot_cmp_ARGO_CTD(dsctd : xr.Dataset, dsargo : xr.Dataset,ds_cycle : xr.Data
     #tab_delta_T = np.vstack([delta_T_cycle1]*len(ds_cycle1['N_LEVELS'])).transpose()
 
     plt.figure()
-    plt.plot(dsctd['OXYK'].isel(N_PROF=0), dsctd['PRES'].isel(N_PROF=0), '.-b', label='CTD')[0]
-    plt.plot(ds_cycle['DOXY'].isel(N_PROF=0),ds_cycle['PRES'].isel(N_PROF=0),'.-k',label='RAW')[0]
+    plt.plot(dsctd['OXYK'].isel(N_PROF=0), dsctd['PRES'].isel(N_PROF=0), 'x--b', label='CTD')[0]
+    plt.plot(ds_cycle['DOXY'].isel(N_PROF=0),ds_cycle['PRES'].isel(N_PROF=0),'x--k',label='RAW')[0]
 
     i_coul = -1
     for corr in dict_corr.items():
