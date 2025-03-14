@@ -292,7 +292,86 @@ def plot_ppox_Inair_Inwater_Ncep(dsair : xr.Dataset, dsinwater : xr.Dataset, nce
 
     return None
 
-def plot_cmp_corr_NCEP(dict_corr : dict, dsair : xr.Dataset,ncep_data : np.ndarray,delta_T : np.ndarray) -> None:
+def plot_cmp_corr_NCEP(dict_corr : dict, list_pieceT : list, dsair : xr.Dataset,ncep_data : np.ndarray,delta_T : np.ndarray) -> None:
+    """ Function to compare different PPOX dsair correction
+
+    Parameters
+    ----------
+    dict_corr : dict
+        dict of Correction (Name/Value).
+    list_pieceT : list
+        list of time to cut the correction in piece.
+        same length as dict_corr.
+    dsair : xr.Dataset
+        Contains InAir data
+    ncep_data : np.ndarray
+        NCEP PPOX
+    delta_T : np.ndarray
+        For each data : (JULD - launch_date)
+
+    Returns
+    -------
+    None
+    A plot is created
+    """
+    norm = plt.Normalize(vmin=0, vmax=len(dict_corr))
+    cmap = matplotlib.colormaps.get_cmap('jet')  # Dégradé bleu -> rouge
+    colors = cmap(norm(np.arange(0,len(dict_corr))))  # Couleurs pour chaque profil
+
+    plt.figure()
+    plt.subplot(2,1,1)
+    plt.plot(dsair['CYCLE_NUMBER'],ncep_data,'.-k',markersize=1,label='NCEP')
+    plt.plot(dsair['CYCLE_NUMBER'],dsair['PPOX_DOXY'],'.--k',markersize=1,label='RAW')
+
+    plt.subplot(2,1,2)
+    plt.plot(delta_T,ncep_data/dsair['PPOX_DOXY'],'.-k',label='NCEP')
+
+    i_coul = -1
+    for index, (key, value) in enumerate(dict_corr.items()):
+        print(key)
+        i_coul = i_coul + 1
+        val_corr = value
+        pieceT = list_pieceT[index]
+        nb_morceaux = val_corr.ndim
+        bid = dsair['PPOX_DOXY'].copy()
+        for i_morceaux in range(0,nb_morceaux):
+            mask = np.ones(delta_T.shape,dtype=bool)
+            if nb_morceaux==1:
+                val_corr_en_cours = val_corr
+            else:
+                val_corr_en_cours = val_corr[i_morceaux]
+                mask = (delta_T >= pieceT[i_morceaux]) & (delta_T < pieceT[i_morceaux+1])
+                
+            print(val_corr_en_cours)
+                                                          
+            if len(val_corr_en_cours)==1:
+                bid[mask] = val_corr_en_cours[0]*dsair['PPOX_DOXY'][mask]
+            else:
+                bid[mask] = (val_corr_en_cours[0]*(1+val_corr_en_cours[1]/100*delta_T[mask]/365))*dsair['PPOX_DOXY'][mask]
+                
+        label_corr = f'{key}'  # Nom personnalisé de la courbe dans la légende
+        plt.subplot(2,1,1)
+        plt.plot(dsair['CYCLE_NUMBER'],bid,'.-',color=colors[i_coul],markersize=1,label=label_corr)
+        plt.subplot(2,1,2)
+        plt.plot(delta_T,bid/dsair['PPOX_DOXY'],'.-',color=colors[i_coul],markersize=1,label=label_corr)
+    
+    plt.subplot(2,1,1)    
+    plt.grid()
+    plt.xlabel('CYCLE_NUMBER')
+    plt.ylabel('PPOX')
+    leg=plt.legend(draggable=True) 
+#_=plt.legend() #loc='lower left', bbox_to_anchor=(1, 0))
+
+    plt.subplot(2,1,2)    
+    plt.grid()
+    plt.xlabel('JULD')
+    plt.ylabel('Time Drift Gain')
+    #leg=plt.legend(draggable=True) 
+
+    return None
+
+
+def plot_cmp_corr_NCEP_old(dict_corr : dict, dsair : xr.Dataset,ncep_data : np.ndarray,delta_T : np.ndarray) -> None:
     """ Function to compare different PPOX dsair correction
 
     Parameters
@@ -352,7 +431,83 @@ def plot_cmp_corr_NCEP(dict_corr : dict, dsair : xr.Dataset,ncep_data : np.ndarr
 
     return None
 
-def plot_cmp_corr_WOA(dict_corr : dict, ds_argo_interp : xr.Dataset, ds_woa_interp : xr.Dataset, delta_T : np.ndarray)-> None:
+
+def plot_cmp_corr_WOA(dict_corr : dict, list_pieceT : list, ds_argo_interp : xr.Dataset, ds_woa_interp : xr.Dataset, delta_T : np.ndarray)-> None:
+    """ Function to compare different correction with PSATWOA
+
+    Parameters
+    -----------
+    dict_corr : dict
+        dict of correction (Name/Value)
+    list_pieceT : list
+        list of time to cut the correction in piece.
+        same length as dict_corr.
+    ds_argo_interp : xr.Dataset
+        Contains ARGO data interpolated on a regular grid (to calculate the mean of ARGO PSAT on ths grid)
+    ds_woa_interp : xr.Dataset
+        Contains WOA DATA interpolated on the same regular grid (to calculate the mean of WOA PASAT on ths grid)
+    delta_T : np.ndarray
+        Difference (JULD - launch_date)
+
+    Returns
+    -------
+    None
+    A plot is created
+    """
+    ana_dens = sw.pden(ds_argo_interp['PSAL_ARGO'],ds_argo_interp['TEMP_ARGO'],ds_argo_interp['PRES_ARGO'],0)
+    O2_umolL = umolkg_to_umolL(ds_argo_interp['DOXY_ARGO'],ds_argo_interp['DOXY_ARGO'].units,ana_dens)
+    psatargo = O2ctoO2s(O2_umolL,ds_argo_interp['TEMP_ARGO'],ds_argo_interp['PSAL_ARGO'])
+    psatargo_mean = psatargo.mean(dim='N_LEVELS')
+    psatWOA_mean = ds_woa_interp['Psatwoa'].mean(dim='N_LEVELS')
+
+    norm = plt.Normalize(vmin=0, vmax=len(dict_corr))
+    cmap = matplotlib.colormaps.get_cmap('jet')  # Dégradé bleu -> rouge
+    colors = cmap(norm(np.arange(0,len(dict_corr))))  # Couleurs pour chaque profil
+
+    plt.figure()
+    plt.plot(delta_T,psatWOA_mean,'.-k',label='WOA')
+    plt.plot(delta_T,psatargo_mean,'.--k',label='RAW')
+
+    tab_delta_T = np.vstack([delta_T]*len(ds_argo_interp['N_LEVELS'])).transpose()
+
+    i_coul = -1
+    for index, (key, value) in enumerate(dict_corr.items()):
+        print(key)
+        i_coul = i_coul + 1
+        val_corr = value
+        pieceT = list_pieceT[index]
+        nb_morceaux = val_corr.ndim
+        
+        bid = ds_argo_interp['DOXY_ARGO'].copy()
+        for i_morceaux in range(0,nb_morceaux):
+            mask = np.ones(tab_delta_T.shape,dtype=bool)
+            if nb_morceaux==1:
+                val_corr_en_cours = val_corr
+            else:
+                val_corr_en_cours = val_corr[i_morceaux]
+                mask = (tab_delta_T >= pieceT[i_morceaux]) & (tab_delta_T < pieceT[i_morceaux+1])
+                
+            print(val_corr_en_cours)
+                                                          
+            if len(val_corr_en_cours)==1:
+                bid.values[mask] = val_corr_en_cours[0]*ds_argo_interp['DOXY_ARGO'].values[mask]
+            else:
+                bid.values[mask] = (val_corr_en_cours[0]*(1+val_corr_en_cours[1]/100*tab_delta_T[mask]/365))*ds_argo_interp['DOXY_ARGO'].values[mask]
+                
+        O2_umolL = umolkg_to_umolL(bid,ds_argo_interp['DOXY_ARGO'].units,ana_dens)
+        psatargo_corr = O2ctoO2s(O2_umolL,ds_argo_interp['TEMP_ARGO'],ds_argo_interp['PSAL_ARGO'])
+        psatargo_corr_mean = psatargo_corr.mean(dim='N_LEVELS')
+        
+        label_corr = f'{key}'  # Nom personnalisé de la courbe dans la légende
+        plt.plot(delta_T,psatargo_corr_mean,'.-',color=colors[i_coul],markersize=1,label=label_corr)        
+    plt.grid()
+    plt.xlabel('DELTA JULD')
+    plt.ylabel('PSAT')
+    _=plt.legend(draggable=True)
+
+    return None
+
+def plot_cmp_corr_WOA_old(dict_corr : dict, ds_argo_interp : xr.Dataset, ds_woa_interp : xr.Dataset, delta_T : np.ndarray)-> None:
     """ Function to compare different correction with PSATWOA
 
     Parameters
