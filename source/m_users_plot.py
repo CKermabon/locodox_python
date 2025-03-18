@@ -562,15 +562,13 @@ def plot_cmp_corr_WOA_old(dict_corr : dict, ds_argo_interp : xr.Dataset, ds_woa_
 
     return None
 
-def plot_cmp_ARGO_CTD(dsctd : xr.Dataset, dsargo : xr.Dataset,ds_cycle : xr.Dataset, dict_corr : dict, launch_date : np.datetime64) -> None:
+def plot_cmp_ARGO_CTD(dsctd : xr.Dataset,ds_cycle : xr.Dataset, dict_corr : dict, launch_date : np.datetime64) -> None:
     """ Function to compare an ARGO DOXY profile with a CTD Doxy profile
 
     Parameters
     ----------
     dsctd : xr.Dataset
      Contains OXYK (O2 in mmol/Kg) and PRES
-    dsargo : xr.Dataset
-     Contains Data from Sprof ARGO Netcdf file
     ds_cycle : xr.Dataset
      Cycle to compare
     dict_corr : dict
