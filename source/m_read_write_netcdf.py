@@ -124,7 +124,8 @@ def xarray_to_dict(ds:xr.Dataset)->dict:
     dict : dictionnary
     """
     # Dimensions
-    dimensions = {dim: size for dim, size in ds.dims.items()}
+    #dimensions = {dim: size for dim, size in ds.dims.items()}
+    dimensions = {dim: size for dim, size in ds.sizes.items()}
 
     # Variables
     variables = {}
