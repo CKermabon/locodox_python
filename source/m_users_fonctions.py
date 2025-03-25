@@ -264,7 +264,7 @@ def corr_data(ds_argo_Sprof : xr.Dataset,corr_final : np.ndarray,launch_date : n
        Dataset with DOXY_ADJUSTED
     """
     delta_T_Sprof = diff_time_in_days(ds_argo_Sprof['JULD'].values,launch_date)
-    for i_prof in range(1,len(ds_argo_Sprof['CYCLE_NUMBER'])):
+    for i_prof in range(0,len(ds_argo_Sprof['CYCLE_NUMBER'])):
         tab_delta_T= np.repeat(delta_T_Sprof[i_prof],len(ds_argo_Sprof['N_LEVELS']))
         #tab_delta_T= np.tile(delta_T_Sprof[i_prof],(1,len(ds_argo_Sprof['N_LEVELS'])))
         #print(tab_delta_T.shape)
