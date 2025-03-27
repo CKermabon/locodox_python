@@ -1,0 +1,5 @@
+grep ',838,' liste_floats_coriolis_doxy.txt > liste_floats_coriolis_doxy_deep.txt
+more liste_floats_coriolis_doxy.txt | grep -v ',838,' > liste_floats_coriolis_doxy_2000m.txt
+
+cut -c10-16 liste_floats_coriolis_doxy_2000m.txt | uniq > liste_floats_coriolis_doxy_2000m_uniq.txt
+cut -c10-16 liste_floats_coriolis_doxy_deep.txt | uniq > liste_floats_coriolis_doxy_deep_uniq.txt

@@ -175,7 +175,7 @@ def dict_to_xarray(data : dict)->xr.Dataset:
 
     return ds
 
-def corr_file(fic_en_cours : str,fic_res : str,launch_date : np.datetime64,comment_corr :str,coef_corr : str,eq_corr : str,gain_final : np.float64 = 1,drift_final : np.float64=0,coef_pres:np.float64 = 0) -> None : 
+def corr_file(fic_en_cours : str,fic_res : str,launch_date : np.datetime64,comment_corr :str,coef_corr : str,eq_corr : str,gain_final : np.float64 = 1,drift_final : np.float64=0,coef_pres:np.float64 = 0,percent_relative_error: np.float64=3) -> None : 
     """ Function to update the B_monoprofile with the DOXY_ADJUSTED
 
     Parameters
@@ -230,19 +230,24 @@ def corr_file(fic_en_cours : str,fic_res : str,launch_date : np.datetime64,comme
         O2_ARGO_corr = (gain_final * (1+drift_final/100 * delta_T[i_prof,:]/365))* dsargo_oxy['DOXY'].isel(N_PROF=i_prof)
         O2_ARGO_corr = O2_ARGO_corr * (1 + coef_pres * dsargo_oxy['PRES'].isel(N_PROF=i_prof)/1000)
         dsargo_oxy['DOXY_ADJUSTED'].loc[dict(N_PROF=i_prof)] =  O2_ARGO_corr 
-        dsargo_oxy['DOXY_ADJUSTED_ERROR'].loc[dict(N_PROF=i_prof)] =  O2_ARGO_corr * 3 /100
+        dsargo_oxy['DOXY_ADJUSTED_ERROR'].loc[dict(N_PROF=i_prof)] =  O2_ARGO_corr * percent_relative_error /100
 
-        #dsargo_oxy['DOXY_ADJUSTED_ERROR'].loc[dict(N_PROF=i_prof)] =  O2_ARGO_corr # A completer
-    
+
+
     # FillValue where no DOXY DATA
     dsargo_oxy['DOXY_ADJUSTED'] = dsargo_oxy['DOXY_ADJUSTED'].where(dsargo_oxy['DOXY']!=dsargo_oxy['DOXY'].attrs['_FillValue'],dsargo_oxy['DOXY_ADJUSTED'].attrs['_FillValue'])
+    #dsargo_oxy['DOXY_ADJUSTED'] = dsargo_oxy['DOXY_ADJUSTED'].where(((dsargo_oxy['DOXY_QC']==1) | (dsargo_oxy['DOXY_QC']==2) | (dsargo_oxy['DOXY_QC']==3)),dsargo_oxy['DOXY_ADJUSTED'].attrs['_FillValue'])
     dsargo_oxy['DOXY_ADJUSTED_ERROR'] = dsargo_oxy['DOXY_ADJUSTED_ERROR'].where(dsargo_oxy['DOXY_ADJUSTED']!=dsargo_oxy['DOXY_ADJUSTED'].attrs['_FillValue'],dsargo_oxy['DOXY_ADJUSTED_ERROR'].attrs['_FillValue'])
+    dsargo_oxy['DOXY_ADJUSTED_QC'] = dsargo_oxy['DOXY_QC']
+    mask = dsargo_oxy['DOXY_QC'].isin([b'1', b'2', b'3'])  # Flag 1/2/3 ==> flag 1 because they are corrected
+    dsargo_oxy['DOXY_ADJUSTED_QC'] = dsargo_oxy['DOXY_ADJUSTED_QC'].where(~mask, np.array(b'1', dtype='S1'))  
+    #dsargo_oxy['DOXY_ADJUSTED'] = dsargo_oxy['DOXY_ADJUSTED'].where(((dsargo_oxy['DOXY_QC']==b'1') | (dsargo_oxy['DOXY_QC']==b'2') | (dsargo_oxy['DOXY_QC']==b'3')),dsargo_oxy['DOXY_ADJUSTED'].attrs['_FillValue'])
 
 
 
     for n_prof, n_calib, n_param in zip(*doxy_index):
-        dsargo_oxy['PARAMETER_DATA_MODE'].loc[dict(N_PROF=n_prof,N_PARAM=n_param)] = 'U'
-        dsargo_oxy['DATA_MODE'].loc[dict(N_PROF=n_prof)] = 'V'
+        dsargo_oxy['PARAMETER_DATA_MODE'].loc[dict(N_PROF=n_prof,N_PARAM=n_param)] = 'D'
+        dsargo_oxy['DATA_MODE'].loc[dict(N_PROF=n_prof)] = 'D'
 
     # Creation of dataset with variables with N_CALIB dimension
     var_n_calib = [var for var in dsargo_oxy.data_vars if "N_CALIB" in dsargo_oxy[var].dims]
@@ -262,6 +267,30 @@ def corr_file(fic_en_cours : str,fic_res : str,launch_date : np.datetime64,comme
     ds3 = dsargo_oxy.drop_dims('N_CALIB')
     ds3 = ds3.merge(ds2)
     #ds3.to_netcdf(fic_res)
+
+    # PROFILE_DOXY_QC
+    good_flags = [b'1', b'2', b'5', b'8']
+    bad_flags = [b'3', b'4']
+
+    for i in range(ds3.sizes['N_PROF']):
+        doxy_qc_en_cours = ds3['DOXY_ADJUSTED_QC'].isel(N_PROF=i)
+        good_count = np.isin(doxy_qc_en_cours, good_flags).sum()
+        bad_count = np.isin(doxy_qc_en_cours, bad_flags).sum()
+        total = good_count + bad_count # flag 0 and 9 are ignored
+
+        if good_count == total:  # Tous les DOXY_QC sont bons
+            ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b'A'
+        elif good_count / total >= 0.75:  # 75% des DOXY_QC sont bons
+            ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b'B'
+        elif good_count / total >= 0.5 :  # 75% des DOXY_QC sont bons
+            ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b'C'
+        elif good_count / total >= 0.25 :  # 75% des DOXY_QC sont bons
+            ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b'D'
+        elif good_count / total > 0 :  # 75% des DOXY_QC sont bons
+            ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b'D'
+        else:
+            ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b' '
+    
     dict_res = xarray_to_dict(ds3)
     write_netcdf(fic_res,dict_res,'N_HISTORY')
     return None
