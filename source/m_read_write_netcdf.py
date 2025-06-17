@@ -264,7 +264,9 @@ def corr_file(fic_en_cours : str,fic_res : str,launch_date : np.datetime64,comme
         ds2['SCIENTIFIC_CALIB_EQUATION'].loc[dict(N_PROF=n_prof,N_PARAM=n_param,N_CALIB=n_calib)] = list(('{: <256}'.format(eq_corr)))
 
     
+    
     ds3 = dsargo_oxy.drop_dims('N_CALIB')
+    ds3['DATE_UPDATE'][:] = list(datetime.now().strftime("%Y%m%d%H%M%S"))
     ds3 = ds3.merge(ds2)
     #ds3.to_netcdf(fic_res)
 
