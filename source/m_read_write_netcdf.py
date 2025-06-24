@@ -237,10 +237,13 @@ def corr_file(fic_en_cours : str,fic_res : str,launch_date : np.datetime64,comme
     # FillValue where no DOXY DATA
     dsargo_oxy['DOXY_ADJUSTED'] = dsargo_oxy['DOXY_ADJUSTED'].where(dsargo_oxy['DOXY']!=dsargo_oxy['DOXY'].attrs['_FillValue'],dsargo_oxy['DOXY_ADJUSTED'].attrs['_FillValue'])
     #dsargo_oxy['DOXY_ADJUSTED'] = dsargo_oxy['DOXY_ADJUSTED'].where(((dsargo_oxy['DOXY_QC']==1) | (dsargo_oxy['DOXY_QC']==2) | (dsargo_oxy['DOXY_QC']==3)),dsargo_oxy['DOXY_ADJUSTED'].attrs['_FillValue'])
-    dsargo_oxy['DOXY_ADJUSTED_ERROR'] = dsargo_oxy['DOXY_ADJUSTED_ERROR'].where(dsargo_oxy['DOXY_ADJUSTED']!=dsargo_oxy['DOXY_ADJUSTED'].attrs['_FillValue'],dsargo_oxy['DOXY_ADJUSTED_ERROR'].attrs['_FillValue'])
     dsargo_oxy['DOXY_ADJUSTED_QC'] = dsargo_oxy['DOXY_QC']
     mask = dsargo_oxy['DOXY_QC'].isin([b'1', b'2', b'3'])  # Flag 1/2/3 ==> flag 1 because they are corrected
     dsargo_oxy['DOXY_ADJUSTED_QC'] = dsargo_oxy['DOXY_ADJUSTED_QC'].where(~mask, np.array(b'1', dtype='S1'))  
+
+    mask = dsargo_oxy['DOXY_ADJUSTED_QC'].isin([b'4', b'9'])  # Flag 4/9 ==> FillValue
+    dsargo_oxy['DOXY_ADJUSTED'] = dsargo_oxy['DOXY_ADJUSTED'].where(~mask, dsargo_oxy['DOXY_ADJUSTED'].attrs['_FillValue'])  
+    dsargo_oxy['DOXY_ADJUSTED_ERROR'] = dsargo_oxy['DOXY_ADJUSTED_ERROR'].where(dsargo_oxy['DOXY_ADJUSTED']!=dsargo_oxy['DOXY_ADJUSTED'].attrs['_FillValue'],dsargo_oxy['DOXY_ADJUSTED_ERROR'].attrs['_FillValue'])
     #dsargo_oxy['DOXY_ADJUSTED'] = dsargo_oxy['DOXY_ADJUSTED'].where(((dsargo_oxy['DOXY_QC']==b'1') | (dsargo_oxy['DOXY_QC']==b'2') | (dsargo_oxy['DOXY_QC']==b'3')),dsargo_oxy['DOXY_ADJUSTED'].attrs['_FillValue'])
 
 
