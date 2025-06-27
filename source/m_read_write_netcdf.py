@@ -283,18 +283,19 @@ def corr_file(fic_en_cours : str,fic_res : str,launch_date : np.datetime64,comme
         bad_count = np.isin(doxy_qc_en_cours, bad_flags).sum()
         total = good_count + bad_count # flag 0 and 9 are ignored
 
-        if good_count == total:  # Tous les DOXY_QC sont bons
-            ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b'A'
-        elif good_count / total >= 0.75:  # 75% des DOXY_QC sont bons
-            ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b'B'
-        elif good_count / total >= 0.5 :  # 75% des DOXY_QC sont bons
-            ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b'C'
-        elif good_count / total >= 0.25 :  # 75% des DOXY_QC sont bons
-            ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b'D'
-        elif good_count / total > 0 :  # 75% des DOXY_QC sont bons
-            ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b'D'
-        else:
-            ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b' '
+        if total!=0:
+            if good_count == total:  # Tous les DOXY_QC sont bons
+                ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b'A'
+            elif good_count / total >= 0.75:  # 75% des DOXY_QC sont bons
+                ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b'B'
+            elif good_count / total >= 0.5 :  # 75% des DOXY_QC sont bons
+                ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b'C'
+            elif good_count / total >= 0.25 :  # 75% des DOXY_QC sont bons
+                ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b'D'
+            elif good_count / total > 0 :  # 75% des DOXY_QC sont bons
+                ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b'D'
+            else:
+                ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b' '
     
     dict_res = xarray_to_dict(ds3)
     write_netcdf(fic_res,dict_res,'N_HISTORY')
