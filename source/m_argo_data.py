@@ -378,14 +378,14 @@ def get_argo_data_for_NCEP(ds_argo_Rtraj : xr.Dataset,ds_argo_Sprof: xr.Dataset,
 
     #
     plt.figure()
-    plt.plot(ds_argo_Rtraj_inair['CYCLE_NUMBER'],ds_argo_Rtraj_inair['PPOX_DOXY'],'*-b')
+    plt.plot(ds_argo_Rtraj_inair['CYCLE_NUMBER'],ds_argo_Rtraj_inair['PPOX_DOXY'],'*-c')
     plt.plot(ds_argo_Rtraj_inwater['CYCLE_NUMBER'],ds_argo_Rtraj_inwater['PPOX_DOXY'],'o-r')
 
     # Median  per cycle
     ds_argo_Rtraj_inair = ds_argo_Rtraj_inair.groupby('CYCLE_NUMBER').median(skipna=True)
     ds_argo_Rtraj_inwater = ds_argo_Rtraj_inwater.groupby('CYCLE_NUMBER').median(skipna=True)
 
-    plt.plot(ds_argo_Rtraj_inair['CYCLE_NUMBER'],ds_argo_Rtraj_inair['PPOX_DOXY'],'*-c')
+    plt.plot(ds_argo_Rtraj_inair['CYCLE_NUMBER'],ds_argo_Rtraj_inair['PPOX_DOXY'],'*-b')
     plt.plot(ds_argo_Rtraj_inwater['CYCLE_NUMBER'],ds_argo_Rtraj_inwater['PPOX_DOXY'],'o-m')
     plt.grid()
     _ = plt.legend(['InAir','InWater','MedianInAir','MedianInWater']) #,loc='upper left',bbox_to_anchor=(1,1))
