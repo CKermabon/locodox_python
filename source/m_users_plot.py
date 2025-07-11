@@ -76,11 +76,16 @@ def plot_WMO_position(ds_WMO: xr.Dataset,ds_bathy: xr.Dataset,depths: np.ndarray
     latitudes = ds_WMO['LATITUDE']
     num_positions = len(longitudes)
     colors = plt.cm.tab10(np.arange(num_positions) // 10 % 10)  # 1 color by 10
+    cycle_number_plot = ds_WMO['CYCLE_NUMBER'].values.astype(int)
     # plot position with color and add the cycle number
+    ax.plot(longitudes, latitudes, color='black', linewidth=0.8, transform=ccrs.PlateCarree(), zorder=1)
     for i, (lon, lat) in enumerate(zip(longitudes, latitudes)):
-        ax.scatter(lon, lat, color=colors[i], s=10, transform=ccrs.PlateCarree(), label=f'Group {i // 10}' if i % 10 == 0 else "")
-        ax.text(lon + 0.1, lat + 0.1, ds_WMO['CYCLE_NUMBER'].values[i], color='black', fontsize=4, transform=ccrs.PlateCarree())
-
+        ax.scatter(lon, lat, color=colors[i], s=20, transform=ccrs.PlateCarree(), zorder=2,label=f'Group {i // 10}' if i % 10 == 0 else "")
+        if i % 5 == 0:
+            ax.text(lon, lat, str(cycle_number_plot[i]),color='black', fontsize=8, fontweight='bold',transform=ccrs.PlateCarree(),
+                    ha='left', va='center',zorder=3)
+    ax.text(lon, lat, str(cycle_number_plot[-1]),color='black', fontsize=8, fontweight='bold',transform=ccrs.PlateCarree(),
+             ha='left', va='center',zorder=3)
     # dd a legend by group
     #handles, labels = ax.get_legend_handles_labels()
     #ax.legend(handles, labels, loc='upper right', title='Groups')
@@ -92,6 +97,53 @@ def plot_WMO_position(ds_WMO: xr.Dataset,ds_bathy: xr.Dataset,depths: np.ndarray
     plt.show()
 
     return None
+
+def plot_Theta_S(ds_WMO : xr.Dataset,strvar : str='',pr : int=0)->None:
+    """ Function to plot potential temperature at pr  vs Salinity with a color by  cycle
+
+    Parameters
+    ----------
+    ds_WMO : xr.Dataset
+     contains ARGO data (from Sprof Netcdf ARGO file)
+    strvar : str (default : '')
+     Indicates if we plot Raw Data (strvar='') or Adjusted Data (strvar = '_ADJUSTED')
+    pr : int (default : 0)
+        Indicates the pressure for which to calculate the potential temperature.
+
+    Returns
+    -------
+    None
+    Only plot is shown. The colormap is jet. 
+    So, the blue plots are associated to the first cycles and the red for the last cycles.
+    """
+
+    ds_WMO = ds_WMO.where(ds_WMO['DIRECTION']=='A',drop=True)
+    platform_number = ds_WMO['PLATFORM_NUMBER'].values.astype(int)
+    psal = ds_WMO['PSAL'+strvar].values  
+    pres = ds_WMO['PRES'+strvar].values 
+    temp = ds_WMO['TEMP'+strvar].values  
+    cycles = ds_WMO['CYCLE_NUMBER'].values  
+    theta_argo = sw.ptmp(psal,temp,pres,pr)
+    
+    norm = plt.Normalize(vmin=np.min(cycles), vmax=np.max(cycles))
+    cmap = matplotlib.colormaps.get_cmap('jet')  # Dégradé bleu -> rouge
+    colors = cmap(norm(cycles))  # Couleurs pour chaque profil
+
+    plt.figure()
+    for i, cycle in enumerate(cycles):
+        h = plt.plot(ds_WMO['PSAL'+strvar].isel(N_PROF=i), theta_argo[i], '.-',color=colors[i],markersize=1,label='ARGO')[0]
+
+
+    plt.gca().invert_yaxis()
+
+    plt.xlabel('Salinity (PSAL' + strvar +')')
+    plt.ylabel('Potential Temperature (+ ' + strvar + ' at ' + str(pr) + 'db)')
+    plt.title(platform_number[0])
+    plt.grid()
+    plt.gca().invert_yaxis()
+    plt.show()
+
+    return h
 
 
 def plot_DOXY_cycle(ds_WMO : xr.Dataset,strvar : str='')->None:
