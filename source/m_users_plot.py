@@ -7,6 +7,7 @@ import xarray as xr
 import numpy as np
 import seawater as sw
 from m_users_fonctions import O2ctoO2s, diff_time_in_days, umolkg_to_umolL
+import copy
 
 def plot_WMO_position(ds_WMO: xr.Dataset,ds_bathy: xr.Dataset,depths: np.ndarray,extend_val: float) -> None :
     """ Function to plot longitude/latitude with bathymetry
@@ -98,12 +99,109 @@ def plot_WMO_position(ds_WMO: xr.Dataset,ds_bathy: xr.Dataset,depths: np.ndarray
 
     return None
 
-def plot_Theta_S(ds_WMO : xr.Dataset,strvar : str='',pr : int=0)->None:
+def plot_CTD_Argo_Pos(ds_WMO : xr.Dataset, ds_bathy: xr.Dataset,depths: np.ndarray,extend_val: float,rep_ctd : str,fic_ctd : str,num_ctd : np.ndarray,num_cycle:np.ndarray):
+    
+    """ Function to plot CTD and ARGO longitude/latitude used to compare with bathymetry
+
+    Parameters
+    -----------
+    ds_WMO : xr.Dataset
+        contains :
+        LONGITUDES
+        LATITUDES
+        CYCLE_NUMBER
+        PLATFORM_NUMBER (WMO)
+        (from Sprof Netcdf ARGO file)
+    ds_bathy : xr.Dataset
+        contains : 
+        x : Longitudes
+        y : Latitude
+        z : bathymetry
+    depths :np.ndarray
+        Bathymetry depths to contour
+    extend_val : float
+        The value to define the limits of the plot
+        (min(LONGITUDES)-extend val max(LONGITUDES+extend_val)
+        (min(LATITUDES)-extend val max(LATITUDES+extend_val)
+    rep_ctd : str
+        CTD Directoy
+    fic_ctd : str
+        CTD NetCDF Files
+    num_ctd : np.ndarray
+        CTD Number
+    num_cycle : np.ndarray
+        CYCLE Number
+    Returns
+    -------
+    None
+    Only a plot is shown.
+    The plot plots the CTD and ARGO lon/lat used for comparison.
+    We also plot the bathymetry.
+    We use a Mercator projection.
+
+    """
+    ds_bathy_filtered = ds_bathy.where(
+        (ds_bathy['x'] >= ds_WMO['LONGITUDE'].min() - extend_val) &
+        (ds_bathy['x'] <= ds_WMO['LONGITUDE'].max() + extend_val) &
+        (ds_bathy['y'] >= ds_WMO['LATITUDE'].min() - extend_val) &
+        (ds_bathy['y'] <= ds_WMO['LATITUDE'].max() + extend_val),
+        drop=True
+    )
+
+    ds_WMO2 = copy.deepcopy(ds_WMO)
+    ds_WMO2 = ds_WMO2.where(ds_WMO2['CYCLE_NUMBER'].isin(num_cycle),drop=True)
+    # Position on projection Mercator
+    N = len(depths)
+    nudge = 0.01  # shift bin edge slightly to include data
+    boundaries = [min(depths)] + sorted(depths+nudge)  # low to high
+    norm = matplotlib.colors.BoundaryNorm(boundaries, N)
+    blues_cm = matplotlib.colormaps['Blues_r'].resampled(N)
+    colors_depths = blues_cm(norm(depths))
+
+    fig = plt.figure()
+    ax = plt.axes(projection=ccrs.Mercator())
+    ax.set_extent([ds_WMO2['LONGITUDE'].min()-extend_val,ds_WMO2['LONGITUDE'].max()+extend_val,ds_WMO2['LATITUDE'].min()-extend_val,ds_WMO2['LATITUDE'].max()+extend_val],
+                  crs=ccrs.PlateCarree())
+
+    # Land in grey
+    ax.add_feature(cfeature.LAND, edgecolor='black', facecolor='grey')
+    # Ocean
+    ax.add_feature(cfeature.OCEAN) #, edgecolor='none', facecolor='lightblue')
+    ax.add_feature(cfeature.COASTLINE)
+
+    cs = ax.contourf(ds_bathy_filtered['x'],ds_bathy_filtered['y'], ds_bathy_filtered['z'], levels=depths.tolist(),transform=ccrs.PlateCarree(),cmap=plt.cm.bone)
+    sm = plt.cm.ScalarMappable(cmap=blues_cm, norm=norm)
+    cbar = plt.colorbar(cs, ax=ax, orientation='vertical', label='Depth (m)', shrink=0.7,fraction=0.05, pad=0.2)
+
+    colors = plt.cm.jet(np.linspace(0, 1, len(num_ctd)))
+    # Positions
+    for i_ctd in np.arange(len(num_ctd)):
+        ds_cruise = xr.open_dataset(rep_ctd[i_ctd] + fic_ctd[i_ctd])
+        ds_cruise = ds_cruise.where(ds_cruise['STATION_NUMBER']==num_ctd[i_ctd],drop=True)
+        ds_cycle = ds_WMO2.where((ds_WMO2['CYCLE_NUMBER']==num_cycle[i_ctd]) & (ds_WMO2['DIRECTION']=='A'),drop=True)
+        lon = ds_cruise['LONGITUDE']
+        lat = ds_cruise['LATITUDE']
+        h_ctd = ax.scatter(lon, lat, color=colors[i_ctd], s=20, marker='D',transform=ccrs.PlateCarree())#, zorder=1)
+        lon = ds_cycle['LONGITUDE']
+        lat = ds_cycle['LATITUDE']
+        h_argo = ax.scatter(lon, lat, color=colors[i_ctd], s=20, marker = 'o',transform=ccrs.PlateCarree())#, zorder=1)
+
+    
+    ax.set_xlabel('LONGITUDE')
+    ax.set_ylabel('LATITUDE')
+    ax.gridlines(draw_labels=True, linewidth=0.5, color='gray', alpha=0.7, linestyle='-')
+
+    plt.title(f"{ds_cycle['PLATFORM_NUMBER'].isel(N_PROF=0).values} : CTD/ARGO") 
+    ax.legend([h_ctd,h_argo],['CTD','Argo'])
+    return None
+
+
+def plot_Theta_S(ds_WMO1 : xr.Dataset,strvar : str='',pr : int=0,qc_keep : list=[1,2,3,4,8])->None:
     """ Function to plot potential temperature at pr  vs Salinity with a color by  cycle
 
     Parameters
     ----------
-    ds_WMO : xr.Dataset
+    ds_WMO1 : xr.Dataset
      contains ARGO data (from Sprof Netcdf ARGO file)
     strvar : str (default : '')
      Indicates if we plot Raw Data (strvar='') or Adjusted Data (strvar = '_ADJUSTED')
@@ -116,9 +214,13 @@ def plot_Theta_S(ds_WMO : xr.Dataset,strvar : str='',pr : int=0)->None:
     Only plot is shown. The colormap is jet. 
     So, the blue plots are associated to the first cycles and the red for the last cycles.
     """
-
+    ds_WMO = copy.deepcopy(ds_WMO1)
     ds_WMO = ds_WMO.where(ds_WMO['DIRECTION']=='A',drop=True)
     platform_number = ds_WMO['PLATFORM_NUMBER'].values.astype(int)
+    ds_WMO['PSAL' + strvar] = ds_WMO['PSAL' + strvar].where(ds_WMO['PSAL' + strvar + '_QC'].isin(qc_keep),np.nan)
+    ds_WMO['TEMP' + strvar] = ds_WMO['TEMP' + strvar].where(ds_WMO['TEMP' + strvar + '_QC'].isin(qc_keep),np.nan)
+    ds_WMO['PRES' + strvar] = ds_WMO['PRES' + strvar].where(ds_WMO['PRES' + strvar + '_QC'].isin(qc_keep),np.nan)
+    
     psal = ds_WMO['PSAL'+strvar].values  
     pres = ds_WMO['PRES'+strvar].values 
     temp = ds_WMO['TEMP'+strvar].values  
@@ -146,12 +248,12 @@ def plot_Theta_S(ds_WMO : xr.Dataset,strvar : str='',pr : int=0)->None:
     return h
 
 
-def plot_DOXY_cycle(ds_WMO : xr.Dataset,strvar : str='')->None:
+def plot_DOXY_cycle(ds_WMO1 : xr.Dataset,strvar : str='',qc_keep : list=[1,2,3,4,8])->None:
     """ Function to plot DOXY Data vs Pressure with a color by  cycle
 
     Parameters
     ----------
-    ds_WMO : xr.Dataset
+    ds_WMO1 : xr.Dataset
      contains ARGO data (from Sprof Netcdf ARGO file)
     strvar : str (default : '')
      Indicates if we plot Raw Data (strvar='') or Adjusted Data (strvar = '_ADJUSTED')
@@ -162,6 +264,9 @@ def plot_DOXY_cycle(ds_WMO : xr.Dataset,strvar : str='')->None:
     Only plot is shown. The colormap is jet. 
     So, the blue plots are associated to the first cycles and the red for the last cycles.
     """
+    ds_WMO = copy.deepcopy(ds_WMO1)
+    ds_WMO['DOXY' + strvar] = ds_WMO['DOXY' + strvar].where(ds_WMO['DOXY' + strvar + '_QC'].isin(qc_keep),np.nan)
+    ds_WMO['PRES' + strvar] = ds_WMO['PRES' + strvar].where(ds_WMO['PRES' + strvar + '_QC'].isin(qc_keep),np.nan)
     oxy = ds_WMO['DOXY'+strvar].values  
     pres = ds_WMO['PRES'+strvar].values  
     cycles = ds_WMO['CYCLE_NUMBER'].values  
