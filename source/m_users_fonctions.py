@@ -3,9 +3,34 @@ import numpy as np
 import xarray as xr
 
 
-#########################################################
-# Fonctions permettant d'estimer le gain et/ou la derive.
-########################################################
+#
+# Function to write the differents corrections estimated in an ASCII File.
+#
+def write_ASCII_file(fic : str, num_float : str, list_comment : list, list_corr : list, alignt_number : int=80) : 
+    """ Function to write the coorections estimated in an ASCII file
+    
+    Parameters
+    -----------
+    fic : str
+        Name of the result file
+    num_float : str
+        WMO float
+    list_comment : list
+        Comment for all the corrections
+    list_corr : list
+        Values of the corrections (slope/drift/pressure effect)
+    alignt_number : int
+        number of character after the comment to write the values (to align slope/drift/pressure effect in the file)
+    """
+    with open(fic, "w") as f:
+        line = "WMO Float : " + num_float
+        f.write(line+ "\n")
+        for comment_en_cours,corr_en_cours in zip(list_comment,list_corr) :
+            line = comment_en_cours
+            line = line.ljust(alignt_number) + "/".join(f"{val:.4f}" for val in corr_en_cours)
+            f.write(line + "\n")  # une chaîne par ligne
+    return None
+ 
 #
 # Fonction de calcul de la vapeur d'eau.
 #

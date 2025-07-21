@@ -191,7 +191,7 @@ def plot_CTD_Argo_Pos(ds_WMO : xr.Dataset, ds_bathy: xr.Dataset,depths: np.ndarr
     ax.set_ylabel('LATITUDE')
     ax.gridlines(draw_labels=True, linewidth=0.5, color='gray', alpha=0.7, linestyle='-')
 
-    plt.title(f"{ds_cycle['PLATFORM_NUMBER'].isel(N_PROF=0).values} : CTD/ARGO") 
+    plt.title(f"{ds_cycle['PLATFORM_NUMBER'].isel(N_PROF=0).values:.0f} : CTD/ARGO") 
     ax.legend([h_ctd,h_argo],['CTD','Argo'])
     return None
 
@@ -589,6 +589,87 @@ def plot_cmp_corr_NCEP_old(dict_corr : dict, dsair : xr.Dataset,ncep_data : np.n
     return None
 
 
+def plot_cmp_corr_NCEP_with_error(dict_corr : dict, perr_to_use : np.ndarray, list_pieceT : list, dsair : xr.Dataset,ncep_data : np.ndarray,delta_T : np.ndarray) -> None:
+    """ Function to compare different PPOX dsair correction
+
+    Parameters
+    ----------
+    dict_corr : dict
+        dict of Correction (Name/Value).
+    perr_to_use : np.ndarray
+        error for correction
+    list_pieceT : list
+        list of time to cut the correction in piece.
+        same length as dict_corr.
+    dsair : xr.Dataset
+        Contains InAir data
+    ncep_data : np.ndarray
+        NCEP PPOX
+    delta_T : np.ndarray
+        For each data : (JULD - launch_date)
+
+    Returns
+    -------
+    None
+    A plot is created
+    """
+    norm = plt.Normalize(vmin=0, vmax=len(dict_corr))
+    cmap = matplotlib.colormaps.get_cmap('jet')  # Dégradé bleu -> rouge
+    colors = cmap(norm(np.arange(0,len(dict_corr))))  # Couleurs pour chaque profil
+
+    plt.figure()
+    plt.plot(dsair['CYCLE_NUMBER'],ncep_data,'.-k',markersize=1,label='NCEP')
+    plt.plot(dsair['CYCLE_NUMBER'],dsair['PPOX_DOXY'],'.--k',markersize=1,label='RAW')
+
+
+    i_coul = -1
+    for index, (key, value) in enumerate(dict_corr.items()):
+        print(key)
+        i_coul = i_coul + 1
+        val_corr = value
+        pieceT = list_pieceT[index]
+        perr_corr = perr_to_use[index,:]
+        nb_morceaux = val_corr.ndim
+        bid = dsair['PPOX_DOXY'].copy()
+        bid_min = dsair['PPOX_DOXY'].copy()
+        bid_max = dsair['PPOX_DOXY'].copy()
+
+        for i_morceaux in range(0,nb_morceaux):
+            mask = np.ones(delta_T.shape,dtype=bool)
+            if nb_morceaux==1:
+                val_corr_en_cours = val_corr
+                perr_en_cours = perr_corr
+            else:
+                val_corr_en_cours = val_corr[i_morceaux]
+                perr_en_cours = perr_corr[i_morceaux]
+                mask = (delta_T >= pieceT[i_morceaux]) & (delta_T < pieceT[i_morceaux+1])
+                
+            print(val_corr_en_cours)
+                                                          
+            if len(val_corr_en_cours)==1:
+                bid[mask] = val_corr_en_cours[0]*dsair['PPOX_DOXY'][mask]
+                bid_min[mask] = (val_corr_en_cours[0]-perr_en_cours[0])*dsair['PPOX_DOXY'][mask]
+                bid_mask[mask] = (val_corr_en_cours[0]+perr_en_cours[0])*dsair['PPOX_DOXY'][mask]
+
+            else:
+                bid[mask] = (val_corr_en_cours[0]*(1+val_corr_en_cours[1]/100*delta_T[mask]/365))*dsair['PPOX_DOXY'][mask]
+                bid_min[mask] = ((val_corr_en_cours[0]-perr_en_cours[0])*(1+(val_corr_en_cours[1]-perr_en_cours[1])/100*delta_T[mask]/365))*dsair['PPOX_DOXY'][mask]
+                bid_max[mask] = ((val_corr_en_cours[0]+perr_en_cours[0])*(1+(val_corr_en_cours[1]+perr_en_cours[1])/100*delta_T[mask]/365))*dsair['PPOX_DOXY'][mask]
+
+        label_corr = f'{key}'  # Nom personnalisé de la courbe dans la légende
+        plt.plot(dsair['CYCLE_NUMBER'],bid,'.-',color=colors[i_coul],markersize=1,label=label_corr)
+        plt.fill_between(dsair['CYCLE_NUMBER'], bid_min, bid_max, color='r', alpha=0.3, label="Incertitude")
+    
+    plt.grid()
+    plt.xlabel('CYCLE_NUMBER')
+    plt.ylabel('PPOX')
+    leg=plt.legend(draggable=True) 
+#_=plt.legend() #loc='lower left', bbox_to_anchor=(1, 0))
+
+    return None
+    
+
+
 def plot_cmp_corr_WOA(dict_corr : dict, list_pieceT : list, ds_argo_interp : xr.Dataset, ds_woa_interp : xr.Dataset, delta_T : np.ndarray)-> None:
     """ Function to compare different correction with PSATWOA
 
@@ -663,6 +744,102 @@ def plot_cmp_corr_WOA(dict_corr : dict, list_pieceT : list, ds_argo_interp : xr.
     _=plt.legend(draggable=True)
 
     return None
+
+def plot_cmp_corr_WOA_with_error(dict_corr : dict, perr_to_use : np.ndarray, list_pieceT : list, ds_argo_interp : xr.Dataset, ds_woa_interp : xr.Dataset, delta_T : np.ndarray)-> None:
+    """ Function to compare different correction with PSATWOA
+
+    Parameters
+    -----------
+    dict_corr : dict
+        dict of correction (Name/Value)
+    perr_to_use : np.ndarray
+        error for correction
+    list_pieceT : list
+        list of time to cut the correction in piece.
+        same length as dict_corr.
+    ds_argo_interp : xr.Dataset
+        Contains ARGO data interpolated on a regular grid (to calculate the mean of ARGO PSAT on ths grid)
+    ds_woa_interp : xr.Dataset
+        Contains WOA DATA interpolated on the same regular grid (to calculate the mean of WOA PASAT on ths grid)
+    delta_T : np.ndarray
+        Difference (JULD - launch_date)
+
+    Returns
+    -------
+    None
+    A plot is created
+    """
+    ana_dens = sw.pden(ds_argo_interp['PSAL_ARGO'],ds_argo_interp['TEMP_ARGO'],ds_argo_interp['PRES_ARGO'],0)
+    O2_umolL = umolkg_to_umolL(ds_argo_interp['DOXY_ARGO'],ds_argo_interp['DOXY_ARGO'].units,ana_dens)
+    psatargo = O2ctoO2s(O2_umolL,ds_argo_interp['TEMP_ARGO'],ds_argo_interp['PSAL_ARGO'])
+    psatargo_mean = psatargo.mean(dim='N_LEVELS')
+    psatWOA_mean = ds_woa_interp['Psatwoa'].mean(dim='N_LEVELS')
+
+    norm = plt.Normalize(vmin=0, vmax=len(dict_corr))
+    cmap = matplotlib.colormaps.get_cmap('jet')  # Dégradé bleu -> rouge
+    colors = cmap(norm(np.arange(0,len(dict_corr))))  # Couleurs pour chaque profil
+
+    plt.figure()
+    plt.plot(delta_T,psatWOA_mean,'.-k',label='WOA')
+    plt.plot(delta_T,psatargo_mean,'.--k',label='RAW')
+
+    tab_delta_T = np.vstack([delta_T]*len(ds_argo_interp['N_LEVELS'])).transpose()
+
+    i_coul = -1
+    for index, (key, value) in enumerate(dict_corr.items()):
+        print(key)
+        i_coul = i_coul + 1
+        val_corr = value
+        perr_corr = perr_to_use[index,:]
+        pieceT = list_pieceT[index]
+        nb_morceaux = val_corr.ndim
+        
+        bid = ds_argo_interp['DOXY_ARGO'].copy()
+        bid_min = ds_argo_interp['DOXY_ARGO'].copy()
+        bid_max = ds_argo_interp['DOXY_ARGO'].copy()
+
+        for i_morceaux in range(0,nb_morceaux):
+            mask = np.ones(tab_delta_T.shape,dtype=bool)
+            if nb_morceaux==1:
+                val_corr_en_cours = val_corr
+                perr_en_cours = perr_corr
+            else:
+                val_corr_en_cours = val_corr[i_morceaux]
+                perr_en_cours = perr_corr[i_morceaux]
+                mask = (tab_delta_T >= pieceT[i_morceaux]) & (tab_delta_T < pieceT[i_morceaux+1])
+                
+            print(val_corr_en_cours)
+                                                          
+            if len(val_corr_en_cours)==1:
+                bid.values[mask] = val_corr_en_cours[0]*ds_argo_interp['DOXY_ARGO'].values[mask]
+                bid_min.values[mask] = (val_corr_en_cours[0]-perr_en_cours[0])*ds_argo_interp['DOXY_ARGO'].values[mask]
+                bid_mask.values[mask] = (val_corr_en_cours[0]+perr_en_cours[0])*ds_argo_interp['DOXY_ARGO'].values[mask]
+            else:
+                bid.values[mask] = (val_corr_en_cours[0]*(1+val_corr_en_cours[1]/100*tab_delta_T[mask]/365))*ds_argo_interp['DOXY_ARGO'].values[mask]
+                bid_min.values[mask] = ((val_corr_en_cours[0]-perr_en_cours[0])*(1+(val_corr_en_cours[1]-perr_en_cours[1])/100*tab_delta_T[mask]/365))*ds_argo_interp['DOXY_ARGO'].values[mask]
+                bid_max.values[mask] = ((val_corr_en_cours[0]+perr_en_cours[0])*(1+(val_corr_en_cours[1]+perr_en_cours[1])/100*tab_delta_T[mask]/365))*ds_argo_interp['DOXY_ARGO'].values[mask]   
+                
+        O2_umolL = umolkg_to_umolL(bid,ds_argo_interp['DOXY_ARGO'].units,ana_dens)
+        psatargo_corr = O2ctoO2s(O2_umolL,ds_argo_interp['TEMP_ARGO'],ds_argo_interp['PSAL_ARGO'])
+        psatargo_corr_mean = psatargo_corr.mean(dim='N_LEVELS')
+        O2_umolL_min = umolkg_to_umolL(bid_min,ds_argo_interp['DOXY_ARGO'].units,ana_dens)
+        psatargo_corr_min = O2ctoO2s(O2_umolL_min,ds_argo_interp['TEMP_ARGO'],ds_argo_interp['PSAL_ARGO'])
+        psatargo_corr_min_mean = psatargo_corr_min.mean(dim='N_LEVELS')
+        O2_umolL_max = umolkg_to_umolL(bid_max,ds_argo_interp['DOXY_ARGO'].units,ana_dens)
+        psatargo_corr_max = O2ctoO2s(O2_umolL_max,ds_argo_interp['TEMP_ARGO'],ds_argo_interp['PSAL_ARGO'])
+        psatargo_corr_max_mean = psatargo_corr_max.mean(dim='N_LEVELS')
+        
+        label_corr = f'{key}'  # Nom personnalisé de la courbe dans la légende
+        plt.plot(delta_T,psatargo_corr_mean,'.-',color=colors[i_coul],markersize=1,label=label_corr)  
+        plt.fill_between(delta_T, psatargo_corr_min_mean, psatargo_corr_max_mean, color='r', alpha=0.3, label="Incertitude")
+
+    plt.grid()
+    plt.xlabel('DELTA JULD')
+    plt.ylabel('PSAT')
+    _=plt.legend(draggable=True)
+
+    return None
+    
 
 def plot_cmp_corr_WOA_old(dict_corr : dict, ds_argo_interp : xr.Dataset, ds_woa_interp : xr.Dataset, delta_T : np.ndarray)-> None:
     """ Function to compare different correction with PSATWOA
