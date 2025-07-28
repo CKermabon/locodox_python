@@ -658,7 +658,7 @@ def plot_cmp_corr_NCEP_with_error(dict_corr : dict, perr_to_use : np.ndarray, li
 
         label_corr = f'{key}'  # Nom personnalisé de la courbe dans la légende
         plt.plot(dsair['CYCLE_NUMBER'],bid,'.-',color=colors[i_coul],markersize=1,label=label_corr)
-        plt.fill_between(dsair['CYCLE_NUMBER'], bid_min, bid_max, color='r', alpha=0.3, label="Incertitude")
+        plt.fill_between(dsair['CYCLE_NUMBER'], bid_min, bid_max, color=colors[i_coul], alpha=0.3, label="Incertitude")
     
     plt.grid()
     plt.xlabel('CYCLE_NUMBER')
@@ -831,7 +831,7 @@ def plot_cmp_corr_WOA_with_error(dict_corr : dict, perr_to_use : np.ndarray, lis
         
         label_corr = f'{key}'  # Nom personnalisé de la courbe dans la légende
         plt.plot(delta_T,psatargo_corr_mean,'.-',color=colors[i_coul],markersize=1,label=label_corr)  
-        plt.fill_between(delta_T, psatargo_corr_min_mean, psatargo_corr_max_mean, color='r', alpha=0.3, label="Incertitude")
+        plt.fill_between(delta_T, psatargo_corr_min_mean, psatargo_corr_max_mean, color=colors[i_coul], alpha=0.3, label="Incertitude")
 
     plt.grid()
     plt.xlabel('DELTA JULD')

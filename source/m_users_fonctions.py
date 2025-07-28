@@ -6,7 +6,7 @@ import xarray as xr
 #
 # Function to write the differents corrections estimated in an ASCII File.
 #
-def write_ASCII_file(fic : str, num_float : str, list_comment : list, list_corr : list, alignt_number : int=80) : 
+def write_ASCII_file(fic : str, num_float : str, list_comment : list, list_corr : list, list_error : list) : 
     """ Function to write the coorections estimated in an ASCII file
     
     Parameters
@@ -22,12 +22,20 @@ def write_ASCII_file(fic : str, num_float : str, list_comment : list, list_corr 
     alignt_number : int
         number of character after the comment to write the values (to align slope/drift/pressure effect in the file)
     """
+    max_comment_len = max(len(var) for var in list_comment)
+    max_corr_str_len = max(len("/".join(f"{val:.4f}" for val in var)) for var in list_corr)
+
     with open(fic, "w") as f:
         line = "WMO Float : " + num_float
         f.write(line+ "\n")
-        for comment_en_cours,corr_en_cours in zip(list_comment,list_corr) :
-            line = comment_en_cours
-            line = line.ljust(alignt_number) + "/".join(f"{val:.4f}" for val in corr_en_cours)
+        for comment_en_cours,corr_en_cours, error_en_cours in zip(list_comment,list_corr,list_error) :
+            comment_str = comment_en_cours.ljust(max_comment_len)
+            corr_str =  "/".join(f"{val:.4f}" for val in corr_en_cours) 
+            corr_str = corr_str.ljust(max_corr_str_len)
+            line = f"{comment_str} {corr_str}"
+            if len(error_en_cours) > 0 :
+                error_str = "/".join(f"{val:.4f}" for val in error_en_cours)
+                line = line + f"   (error : {error_str})"
             f.write(line + "\n")  # une chaîne par ligne
     return None
  
