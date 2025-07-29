@@ -621,7 +621,10 @@ def plot_cmp_corr_NCEP_with_error(dict_corr : dict, perr_to_use : np.ndarray, li
     plt.plot(dsair['CYCLE_NUMBER'],ncep_data,'.-k',markersize=1,label='NCEP')
     plt.plot(dsair['CYCLE_NUMBER'],dsair['PPOX_DOXY'],'.--k',markersize=1,label='RAW')
 
-
+    d_val_dslope = np.full_like(delta_T, np.nan)
+    d_val_ddrift = np.full_like(delta_T, np.nan)
+    delta_val_corr = np.full_like(delta_T, np.nan)
+    
     i_coul = -1
     for index, (key, value) in enumerate(dict_corr.items()):
         print(key)
@@ -645,7 +648,13 @@ def plot_cmp_corr_NCEP_with_error(dict_corr : dict, perr_to_use : np.ndarray, li
                 mask = (delta_T >= pieceT[i_morceaux]) & (delta_T < pieceT[i_morceaux+1])
                 
             print(val_corr_en_cours)
-                                                          
+            
+            
+            d_val_dslope[mask] = (1 + val_corr_en_cours[1] / 100 * delta_T / 365)  * dsair['PPOX_DOXY'][mask]
+            d_val_ddrift[mask] = val_corr_en_cours[0] * (delta_T[mask] / 36500) * dsair['PPOX_DOXY'][mask]
+            delta_val_corr[mask] = np.sqrt((d_val_dslope[mask] * perr_en_cours[0]) ** 2 +(d_val_ddrift[mask] * perr_en_cours[1]) ** 2)                                   
+
+
             if len(val_corr_en_cours)==1:
                 bid[mask] = val_corr_en_cours[0]*dsair['PPOX_DOXY'][mask]
                 bid_min[mask] = (val_corr_en_cours[0]-perr_en_cours[0])*dsair['PPOX_DOXY'][mask]
@@ -658,8 +667,9 @@ def plot_cmp_corr_NCEP_with_error(dict_corr : dict, perr_to_use : np.ndarray, li
 
         label_corr = f'{key}'  # Nom personnalisé de la courbe dans la légende
         plt.plot(dsair['CYCLE_NUMBER'],bid,'.-',color=colors[i_coul],markersize=1,label=label_corr)
-        plt.fill_between(dsair['CYCLE_NUMBER'], bid_min, bid_max, color=colors[i_coul], alpha=0.3, label="Incertitude")
-    
+        plt.fill_between(dsair['CYCLE_NUMBER'], bid_min, bid_max, color=colors[i_coul], alpha=0.3, label="Incertitude (min/max)")
+        plt.errorbar(dsair['CYCLE_NUMBER'], bid, yerr=delta_val_corr, fmt='o', color=colors[i_coul], capsize=4, label='Incertitude (propagation)')
+
     plt.grid()
     plt.xlabel('CYCLE_NUMBER')
     plt.ylabel('PPOX')
@@ -745,6 +755,7 @@ def plot_cmp_corr_WOA(dict_corr : dict, list_pieceT : list, ds_argo_interp : xr.
 
     return None
 
+
 def plot_cmp_corr_WOA_with_error(dict_corr : dict, perr_to_use : np.ndarray, list_pieceT : list, ds_argo_interp : xr.Dataset, ds_woa_interp : xr.Dataset, delta_T : np.ndarray)-> None:
     """ Function to compare different correction with PSATWOA
 
@@ -785,6 +796,10 @@ def plot_cmp_corr_WOA_with_error(dict_corr : dict, perr_to_use : np.ndarray, lis
 
     tab_delta_T = np.vstack([delta_T]*len(ds_argo_interp['N_LEVELS'])).transpose()
 
+    d_val_dslope = np.full_like(tab_delta_T, np.nan)
+    d_val_ddrift = np.full_like(tab_delta_T, np.nan)
+    delta_val_corr = np.full_like(tab_delta_T, np.nan)
+
     i_coul = -1
     for index, (key, value) in enumerate(dict_corr.items()):
         print(key)
@@ -807,9 +822,21 @@ def plot_cmp_corr_WOA_with_error(dict_corr : dict, perr_to_use : np.ndarray, lis
                 val_corr_en_cours = val_corr[i_morceaux]
                 perr_en_cours = perr_corr[i_morceaux]
                 mask = (tab_delta_T >= pieceT[i_morceaux]) & (tab_delta_T < pieceT[i_morceaux+1])
-                
+
             print(val_corr_en_cours)
-                                                          
+            
+            #val_bid1 = np.where(mask,(1 + val_corr_en_cours[1] / 100 * tab_delta_T / 365) * ds_argo_interp['DOXY_ARGO'].values,np.nan)
+            #d_val_dslope[mask] = val_bid1[mask]
+            #val_bid2 = np.where(mask,(val_corr_en_cours[0] * (tab_delta_T / 36500)) * ds_argo_interp['DOXY_ARGO'].values ,np.nan)
+            #d_val_ddrift[mask] = val_bid2[mask]
+            #delta_val_corr[mask] = np.sqrt((d_val_dslope[mask] * perr_en_cours[0]) ** 2 + (d_val_ddrift[mask] * perr_en_cours[1]) ** 2)                                   
+
+            
+            d_val_dslope[mask] = (1 + val_corr_en_cours[1] / 100 * tab_delta_T[mask] / 365) * ds_argo_interp['DOXY_ARGO'].values[mask]
+            d_val_ddrift[mask] = (val_corr_en_cours[0] * (tab_delta_T[mask] / 36500)) * ds_argo_interp['DOXY_ARGO'].values[mask]
+            delta_val_corr[mask] = np.sqrt((d_val_dslope[mask] * perr_en_cours[0]) ** 2 + (d_val_ddrift[mask] * perr_en_cours[1]) ** 2) 
+            #print(delta_val_corr.shape)
+
             if len(val_corr_en_cours)==1:
                 bid.values[mask] = val_corr_en_cours[0]*ds_argo_interp['DOXY_ARGO'].values[mask]
                 bid_min.values[mask] = (val_corr_en_cours[0]-perr_en_cours[0])*ds_argo_interp['DOXY_ARGO'].values[mask]
@@ -828,10 +855,13 @@ def plot_cmp_corr_WOA_with_error(dict_corr : dict, perr_to_use : np.ndarray, lis
         O2_umolL_max = umolkg_to_umolL(bid_max,ds_argo_interp['DOXY_ARGO'].units,ana_dens)
         psatargo_corr_max = O2ctoO2s(O2_umolL_max,ds_argo_interp['TEMP_ARGO'],ds_argo_interp['PSAL_ARGO'])
         psatargo_corr_max_mean = psatargo_corr_max.mean(dim='N_LEVELS')
+
         
         label_corr = f'{key}'  # Nom personnalisé de la courbe dans la légende
-        plt.plot(delta_T,psatargo_corr_mean,'.-',color=colors[i_coul],markersize=1,label=label_corr)  
-        plt.fill_between(delta_T, psatargo_corr_min_mean, psatargo_corr_max_mean, color=colors[i_coul], alpha=0.3, label="Incertitude")
+        plt.plot(delta_T,psatargo_corr_mean,'.-',color=colors[i_coul],markersize=1,label=label_corr) 
+        plt.fill_between(delta_T, psatargo_corr_min_mean, psatargo_corr_max_mean, color=colors[i_coul], alpha=0.3, label="Incertitude (min/max)")
+        plt.errorbar(delta_T, psatargo_corr_mean, yerr=np.sqrt(np.nanmean(delta_val_corr,axis=1)), fmt='o', color=colors[i_coul], capsize=4, label='Incertitude (propagation)')
+
 
     plt.grid()
     plt.xlabel('DELTA JULD')
@@ -839,6 +869,7 @@ def plot_cmp_corr_WOA_with_error(dict_corr : dict, perr_to_use : np.ndarray, lis
     _=plt.legend(draggable=True)
 
     return None
+
     
 
 def plot_cmp_corr_WOA_old(dict_corr : dict, ds_argo_interp : xr.Dataset, ds_woa_interp : xr.Dataset, delta_T : np.ndarray)-> None:
