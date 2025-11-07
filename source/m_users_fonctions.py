@@ -281,7 +281,7 @@ def diff_time_in_days(juld_data : np.ndarray, launch_date : np.datetime64) -> np
     delta_T = (juld_data - launch_date) / np.timedelta64(1,'D')
     return delta_T
 
-def corr_data(ds_argo_Sprof : xr.Dataset,corr_final : np.ndarray,launch_date : np.datetime64)->xr.Dataset:
+def corr_data(ds_argo_Sprof : xr.Dataset,corr_final : np.ndarray,launch_date : np.datetime64,coef2 : float, coef3: float)->xr.Dataset:
     """ Function to apply correction on DOXY
 
     Parameters
@@ -289,7 +289,10 @@ def corr_data(ds_argo_Sprof : xr.Dataset,corr_final : np.ndarray,launch_date : n
     ds_argo_Sprof : xr.Dataset
      Contains DOXY/PRES/DOXY_ADJUSTED Variables
     corr_final : np.ndarray
-     Contains Gain and Drift to apply
+     Contains Gain/Drift/Pressure effect to apply
+     launch_date : datetime64
+     coef2, coef3 : float
+         coefficient used in constructor pressure effect : (1 + (coef2 * Temp + coef3)*Pres/1000)     
 
      Returns
      -------
@@ -303,8 +306,13 @@ def corr_data(ds_argo_Sprof : xr.Dataset,corr_final : np.ndarray,launch_date : n
         #print(tab_delta_T.shape)
         new_values = (corr_final[0] * (1+corr_final[1]/100 * tab_delta_T/365))* ds_argo_Sprof['DOXY'].isel(N_PROF=i_prof)
         
-        if len(corr_final)==3:
-            new_values = (1 + corr_final[2] *ds_argo_Sprof['PRES'].isel(N_PROF=i_prof)/1000) * new_values
+        if len(corr_final)==3: 
+            if corr_final[2] == 0:
+                new_values = new_values
+            else:
+                new_values = new_values/(1 + (coef2*ds_argo_Sprof['TEMP'].isel(N_PROF=i_prof) + coef3) *ds_argo_Sprof['PRES'].isel(N_PROF=i_prof)/1000)  
+                new_values=  (1 + (coef2*ds_argo_Sprof['TEMP'].isel(N_PROF=i_prof) + corr_final[2]) *ds_argo_Sprof['PRES'].isel(N_PROF=i_prof)/1000) * new_values
+            
             
         ds_argo_Sprof['DOXY_ADJUSTED'].loc[dict(N_PROF=i_prof)] = new_values
 

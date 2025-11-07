@@ -927,7 +927,7 @@ def plot_cmp_corr_WOA_old(dict_corr : dict, ds_argo_interp : xr.Dataset, ds_woa_
 
     return None
 
-def plot_cmp_ARGO_CTD(dsctd : xr.Dataset,ds_cycle : xr.Dataset, dict_corr : dict, launch_date : np.datetime64) -> None:
+def plot_cmp_ARGO_CTD(dsctd : xr.Dataset,ds_cycle : xr.Dataset, dict_corr : dict, launch_date : np.datetime64, coef2 : float, coef3 : float) -> None:
     """ Function to compare an ARGO DOXY profile with a CTD Doxy profile
 
     Parameters
@@ -940,7 +940,8 @@ def plot_cmp_ARGO_CTD(dsctd : xr.Dataset,ds_cycle : xr.Dataset, dict_corr : dict
      Correction to compare
     launch_date : np.datetime64
      Launch Date
-
+    coef2, coef3 : float
+         coefficient used in constructor pressure effect : (1 + (coef2 * Temp + coef3)*Pres/1000)     
      Returns
      -------
      None
@@ -968,8 +969,12 @@ def plot_cmp_ARGO_CTD(dsctd : xr.Dataset,ds_cycle : xr.Dataset, dict_corr : dict
         elif len(val_corr)==2:
             bid = (val_corr[0]*(1+val_corr[1]/100*tab_delta_T/365))*ds_cycle['DOXY']
         else:
-            bid = (val_corr[0]*(1+val_corr[1]/100*tab_delta_T/365))*ds_cycle['DOXY']
-            bid = (1 + val_corr[2] * ds_cycle['PRES']/1000) * bid  
+            if val_corr[2] == 0.0:
+                bid = (val_corr[0]*(1+val_corr[1]/100*tab_delta_T/365))*ds_cycle['DOXY']
+            else:
+                bid = (val_corr[0]*(1+val_corr[1]/100*tab_delta_T/365))*ds_cycle['DOXY']
+                bid = bid/(1 + (coef2*ds_cycle['TEMP'] + coef3) * ds_cycle['PRES']/1000)
+                bid = (1 + (coef2*ds_cycle['TEMP'] + val_corr[2]) * ds_cycle['PRES']/1000) * bid 
             
         plt.plot(bid.isel(N_PROF=0),ds_cycle['PRES'].isel(N_PROF=0),'.-',color=colors[i_coul],label=corr[0])[0]
     

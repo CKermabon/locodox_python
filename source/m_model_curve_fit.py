@@ -53,7 +53,25 @@ def model_Gain_Derive_CarryOver(X,G,C,D):
     return (G / (1-abs(C)) * (1 + D / 100 * X[2]/365) * (X[0] - abs(C) * X[1]) )
 
 
-def model_Gain_pres(X,G,Gp):
+def model_Gain_pres(X, G, Gp, coef2, coef3):
+    """ Function to estimate a CTD and a pressure effect correction (with curve_fit)
+
+    Parameters
+    ----------
+    X: contains Oxygen (X[0]), Pressure (X[1]) and Temperature Values (X[2]) 
+    coef2, coef3 : sensor depedant (aanderaa or rinko)
+    Returns
+    -------
+    (G*(1 + Gp * X[1]/1000) * X[0]))
+    """
+    return (
+        G
+        * (1 / (1 + (coef2 * X[2] + coef3) * X[1] / 1000)) # undo the correction pressure effect already done by coriolis
+        * (1 + (coef2 * X[2] + Gp) * X[1] / 1000)
+        * X[0]
+    )
+    
+def model_Gain_pres_old(X,G,Gp):
     """ Function to estimate a CTD and a pressure effect correction (with curve_fit)
 
     Parameters

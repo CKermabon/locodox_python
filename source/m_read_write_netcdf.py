@@ -3,6 +3,7 @@ import numpy as np
 import xarray as xr
 from m_users_fonctions import diff_time_in_days
 from datetime import datetime
+import os
 
 def read_netcdf_all(file_name : str, var_in : list=None, verbose : bool=False)->dict:
     """ Function to read a NetCDF file
@@ -175,7 +176,8 @@ def dict_to_xarray(data : dict)->xr.Dataset:
 
     return ds
 
-def corr_file(fic_en_cours : str,fic_res : str,launch_date : np.datetime64,comment_corr :str,coef_corr : str,eq_corr : str,gain_final : np.float64 = 1,drift_final : np.float64=0,coef_pres:np.float64 = 0,percent_relative_error: np.float64=3) -> None : 
+def corr_file(fic_en_cours : str,fic_res : str,launch_date : np.datetime64,comment_corr :str,coef_corr : str,eq_corr : str,
+              coef2 : float, coef3 : float, gain_final : np.float64 = 1,drift_final : np.float64=0,coef_pres:np.float64 = 0,percent_relative_error: np.float64=3) -> None : 
     """ Function to update the B_monoprofile with the DOXY_ADJUSTED
 
     Parameters
@@ -192,6 +194,8 @@ def corr_file(fic_en_cours : str,fic_res : str,launch_date : np.datetime64,comme
         Correction Coefficient
     eq_corr : str
         Correction Equation
+    coef2, coef3 : float
+         coefficient used in constructor pressure effect : (1 + (coef2 * Temp + coef3)*Pres/1000)       
     gain_final : np.float
         Slope to apply (default = 1)
     drift_final : np.float
@@ -220,15 +224,36 @@ def corr_file(fic_en_cours : str,fic_res : str,launch_date : np.datetime64,comme
     delta_T = np.tile(delta_T,nb_depth)
     doxy_index = np.where(dsargo_oxy['PARAMETER'].str.strip() =='DOXY')
     dsargo_oxy.close()
+
     
+
     dsargo_oxy = xr.open_dataset(fic_en_cours,decode_cf = False)
+    
 #    for vname in dsargo_oxy:
 #        if "_FillValue" in dsargo_oxy[vname].attrs and isinstance(dsargo_oxy[vname]._FillValue, bytes):
 #            dsargo_oxy[vname].attrs["_FillValue"] = dsargo_oxy[vname].attrs["_FillValue"].decode("utf8")
 
     for i_prof in range(nb_profil):
         O2_ARGO_corr = (gain_final * (1+drift_final/100 * delta_T[i_prof,:]/365))* dsargo_oxy['DOXY'].isel(N_PROF=i_prof)
-        O2_ARGO_corr = O2_ARGO_corr * (1 + coef_pres * dsargo_oxy['PRES'].isel(N_PROF=i_prof)/1000)
+        if coef_pres != 0:
+            dir_name = os.path.dirname(fic_en_cours)
+            base_name = os.path.basename(fic_en_cours)
+            raw_file = 'R' + base_name[2:]
+            full_raw_file = os.path.join(dir_name, raw_file)
+            if os.path.exists(full_raw_file)==False:
+                raw_file = 'D' + base_name[2:]
+                full_raw_file = os.path.join(dir_name, raw_file)
+                
+            ds_ctd = xr.open_dataset(full_raw_file,engine='argo')
+            print(f"Lecture de la temperature du fichier {full_raw_file} pour correction de l'effet de pression\n")  
+
+            # Interpolation de TEMP sur PRES de ds1 pour ce profil
+            temp_interp = np.interp(dsargo_oxy['PRES'].isel(N_PROF=i_prof), ds_ctd['PRES'].isel(N_PROF=i_prof), ds_ctd['TEMP'].isel(N_PROF=i_prof))
+            ds_ctd.close()
+            
+            O2_ARGO_corr = O2_ARGO_corr/(1 + (coef2*temp_interp + coef3) *dsargo_oxy['PRES'].isel(N_PROF=i_prof)/1000)  # We undo the pressure correction done in coriolis dac
+            O2_ARGO_corr=  (1 + (coef2*temp_interp + coef_pres) *dsargo_oxy['PRES'].isel(N_PROF=i_prof)/1000) * O2_ARGO_corr # We apply the new pressure effect
+        
         dsargo_oxy['DOXY_ADJUSTED'].loc[dict(N_PROF=i_prof)] =  O2_ARGO_corr 
         dsargo_oxy['DOXY_ADJUSTED_ERROR'].loc[dict(N_PROF=i_prof)] =  O2_ARGO_corr * percent_relative_error /100
 
@@ -299,4 +324,6 @@ def corr_file(fic_en_cours : str,fic_res : str,launch_date : np.datetime64,comme
     
     dict_res = xarray_to_dict(ds3)
     write_netcdf(fic_res,dict_res,'N_HISTORY')
+
+    dsargo_oxy.close()
     return None
