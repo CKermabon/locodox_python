@@ -489,7 +489,12 @@ def plot_cmp_corr_NCEP(dict_corr : dict, list_pieceT : list, dsair : xr.Dataset,
         i_coul = i_coul + 1
         val_corr = value
         pieceT = list_pieceT[index]
-        nb_morceaux = val_corr.ndim
+        if len(pieceT) == 0:
+            nb_morceaux = 1
+        else:
+            nb_morceaux = len(pieceT)-1
+        print(f"Number of pieces : {nb_morceaux}")        
+        
         bid = dsair['PPOX_DOXY'].copy()
         for i_morceaux in range(0,nb_morceaux):
             mask = np.ones(delta_T.shape,dtype=bool)
@@ -632,7 +637,13 @@ def plot_cmp_corr_NCEP_with_error(dict_corr : dict, perr_to_use : np.ndarray, li
         val_corr = value
         pieceT = list_pieceT[index]
         perr_corr = perr_to_use[index,:]
-        nb_morceaux = val_corr.ndim
+        if len(pieceT)==0 :
+            nb_morceaux == 1
+        else:
+            nb_morceaux = len(pieceT) - 1
+            
+        print(f"Number of pieces : {nb_morceaux}")
+        
         bid = dsair['PPOX_DOXY'].copy()
         bid_min = dsair['PPOX_DOXY'].copy()
         bid_max = dsair['PPOX_DOXY'].copy()
@@ -724,7 +735,12 @@ def plot_cmp_corr_WOA(dict_corr : dict, list_pieceT : list, ds_argo_interp : xr.
         i_coul = i_coul + 1
         val_corr = value
         pieceT = list_pieceT[index]
-        nb_morceaux = val_corr.ndim
+        if len(pieceT)==0:
+            nb_morceaux = 1
+        else:
+            nb_morceaux = len(pieceT) - 1
+
+        print(f"Number of pieces : {nb_morceaux}")
         
         bid = ds_argo_interp['DOXY_ARGO'].copy()
         for i_morceaux in range(0,nb_morceaux):
@@ -807,7 +823,12 @@ def plot_cmp_corr_WOA_with_error(dict_corr : dict, perr_to_use : np.ndarray, lis
         val_corr = value
         perr_corr = perr_to_use[index,:]
         pieceT = list_pieceT[index]
-        nb_morceaux = val_corr.ndim
+        if len(pieceT)==0:
+            nb_morceaux = 1
+        else:
+            nb_morceaux = len(pieceT) - 1
+
+        print(f"Number of pieces : {nb_morceaux}")
         
         bid = ds_argo_interp['DOXY_ARGO'].copy()
         bid_min = ds_argo_interp['DOXY_ARGO'].copy()
