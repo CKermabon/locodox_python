@@ -638,7 +638,7 @@ def plot_cmp_corr_NCEP_with_error(dict_corr : dict, perr_to_use : np.ndarray, li
         pieceT = list_pieceT[index]
         perr_corr = perr_to_use[index,:]
         if len(pieceT)==0 :
-            nb_morceaux == 1
+            nb_morceaux = 1
         else:
             nb_morceaux = len(pieceT) - 1
             
