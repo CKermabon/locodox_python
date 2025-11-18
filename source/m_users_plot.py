@@ -1035,3 +1035,28 @@ def plot_cmp_corr_oxy_woa(ds_argo_Sprof : xr.Dataset, ds_woa : xr.Dataset) -> No
 
     return None
     
+
+def plot_ref_div_argo(x : np.ndarray,ref : np.ndarray,data : np.ndarray):
+    """ Function to plot the linear line correction
+
+    Parameters
+    -----------
+    x :  days from launch date
+    ref : Reference data (NCEP or WOA)
+    data : Argo data
+
+    Returns
+    --------
+    None 
+    A plot is created
+    """
+    plt.figure()
+    plt.plot(x,ref/data)
+    mask = np.isfinite(ref) & np.isfinite(data)
+    poly_data = np.polyfit(x[mask], ref[mask]/data[mask], 1)
+    plt.plot(x,np.polyval(poly_data,x),'*-r')
+    plt.grid()
+    plt.xlabel('DeltaT')
+    plt.ylabel('REF/ARGO_DATA')
+    plt.show()
+    return None
