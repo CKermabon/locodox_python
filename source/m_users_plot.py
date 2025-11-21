@@ -636,7 +636,7 @@ def plot_cmp_corr_NCEP_with_error(dict_corr : dict, perr_to_use : np.ndarray, li
         i_coul = i_coul + 1
         val_corr = value
         pieceT = list_pieceT[index]
-        perr_corr = perr_to_use[index,:]
+        perr_corr = perr_to_use[index]
         if len(pieceT)==0 :
             nb_morceaux = 1
         else:
@@ -661,7 +661,7 @@ def plot_cmp_corr_NCEP_with_error(dict_corr : dict, perr_to_use : np.ndarray, li
             print(val_corr_en_cours)
             
             
-            d_val_dslope[mask] = (1 + val_corr_en_cours[1] / 100 * delta_T / 365)  * dsair['PPOX_DOXY'][mask]
+            d_val_dslope[mask] = (1 + val_corr_en_cours[1] / 100 * delta_T[mask] / 365)  * dsair['PPOX_DOXY'][mask]
             d_val_ddrift[mask] = val_corr_en_cours[0] * (delta_T[mask] / 36500) * dsair['PPOX_DOXY'][mask]
             delta_val_corr[mask] = np.sqrt((d_val_dslope[mask] * perr_en_cours[0]) ** 2 +(d_val_ddrift[mask] * perr_en_cours[1]) ** 2)                                   
 
@@ -821,7 +821,7 @@ def plot_cmp_corr_WOA_with_error(dict_corr : dict, perr_to_use : np.ndarray, lis
         print(key)
         i_coul = i_coul + 1
         val_corr = value
-        perr_corr = perr_to_use[index,:]
+        perr_corr = perr_to_use[index]
         pieceT = list_pieceT[index]
         if len(pieceT)==0:
             nb_morceaux = 1
