@@ -4,6 +4,9 @@ import xarray as xr
 from m_users_fonctions import diff_time_in_days
 from datetime import datetime
 import os
+import seawater as sw
+from m_users_fonctions import umolkg_to_umolL, O2ctoO2p, O2ptoO2c
+
 
 def read_netcdf_all(file_name : str, var_in : list=None, verbose : bool=False)->dict:
     """ Function to read a NetCDF file
@@ -326,4 +329,181 @@ def corr_file(fic_en_cours : str,fic_res : str,launch_date : np.datetime64,comme
     write_netcdf(fic_res,dict_res,'N_HISTORY')
 
     dsargo_oxy.close()
+    return None
+
+
+def corr_file_with_ppox(fic_en_cours : str,fic_res : str,launch_date : np.datetime64,comment_corr :str,coef_corr : str,eq_corr : str,
+              coef2 : float, coef3 : float, gain_final : np.float64 = 1,drift_final : np.float64=0,coef_pres:np.float64 = 0,percent_relative_error: np.float64=3) -> None : 
+    """ Function to update the B_monoprofile with the DOXY_ADJUSTED
+
+    Parameters
+    ----------
+    fic_en_cours : str
+        Original file
+    fic_res : str
+        Result file
+    launch_date : np.datetime64
+        Launch Date
+    comment_corr : str
+        Information about DOXY Correction
+    coef_corr : str
+        Correction Coefficient
+    eq_corr : str
+        Correction Equation
+    coef2, coef3 : float
+         coefficient used in constructor pressure effect : (1 + (coef2 * Temp + coef3)*Pres/1000)       
+    gain_final : np.float
+        Slope to apply (default = 1)
+    drift_final : np.float
+        Drift to apply (default = 0)
+    coef_pres : np.float
+        Correction for pressure effect (default = 0)
+
+    Returns
+    -------
+    None
+    The file fic_res is created, containing the DOXY_ADJUSTED
+    
+    
+
+    Returns
+    -------
+    None
+    The result file is created
+    """
+    dsargo_oxy = xr.open_dataset(fic_en_cours,engine='argo')
+    delta_T = diff_time_in_days(dsargo_oxy['JULD'],launch_date)
+    nb_depth = len(dsargo_oxy['N_LEVELS'])
+    nb_profil = len(dsargo_oxy['N_PROF'])
+    delta_T = delta_T.to_numpy()
+    delta_T = delta_T.reshape(nb_profil,1)
+    delta_T = np.tile(delta_T,nb_depth)
+    doxy_index = np.where(dsargo_oxy['PARAMETER'].str.strip() =='DOXY')
+
+    # Pas de PSAL dans les fichier B. Il faut lire dans le fichier R ou D
+    dir_path, filename = os.path.split(fic_en_cours)
+    new_filename = 'D' + filename[2:]
+    new_filepath = os.path.join(dir_path, new_filename)
+    if os.path.exists(new_filepath)==False:
+        new_filename = 'R' + filename[2:]
+        new_filepath = os.path.join(dir_path, new_filename)
+        
+    print(new_filepath)
+    ds = xr.open_dataset(new_filepath,engine='argo')
+    #if 'PSAL_ADJUSTED' in ds.data_vars:
+    #    str_chaine = '_ADJUSTED'
+    #else:
+    #    str_chaine = ''
+
+    #str_chaine = ''
+        
+    ana_dens = sw.pden(ds['PSAL'],ds['TEMP'],ds['PRES'],0) # Adjusted ou pas. Ou alors prendre adjusted si existe, sinon raw
+    O2_umolL = umolkg_to_umolL(dsargo_oxy['DOXY'],dsargo_oxy['DOXY'].units,ana_dens[0])
+    ppox_cycle = O2ctoO2p(O2_umolL,ds['TEMP'].isel(N_PROF=0),ds['PSAL'].isel(N_PROF=0),ds['PRES'].isel(N_PROF=0)) 
+    dsargo_oxy.close()
+
+
+    dsargo_oxy = xr.open_dataset(fic_en_cours,decode_cf = False)
+    
+#    for vname in dsargo_oxy:
+#        if "_FillValue" in dsargo_oxy[vname].attrs and isinstance(dsargo_oxy[vname]._FillValue, bytes):
+#            dsargo_oxy[vname].attrs["_FillValue"] = dsargo_oxy[vname].attrs["_FillValue"].decode("utf8")
+
+    for i_prof in range(nb_profil):
+        ppox_ARGO_corr = (gain_final * (1+drift_final/100 * delta_T[i_prof,:]/365))* ppox_cycle[i_prof,:] # A rajouter offset si on en a 1 differente de 0.
+        if coef_pres != 0:
+            dir_name = os.path.dirname(fic_en_cours)
+            base_name = os.path.basename(fic_en_cours)
+            raw_file = 'R' + base_name[2:]
+            full_raw_file = os.path.join(dir_name, raw_file)
+            if os.path.exists(full_raw_file)==False:
+                raw_file = 'D' + base_name[2:]
+                full_raw_file = os.path.join(dir_name, raw_file)
+                
+            ds_ctd = xr.open_dataset(full_raw_file,engine='argo')
+            print(f"Lecture de la temperature du fichier {full_raw_file} pour correction de l'effet de pression\n")  
+
+            # Interpolation de TEMP sur PRES de ds1 pour ce profil
+            temp_interp = np.interp(dsargo_oxy['PRES'].isel(N_PROF=i_prof), ds_ctd['PRES'].isel(N_PROF=i_prof), ds_ctd['TEMP'].isel(N_PROF=i_prof))
+            ds_ctd.close()
+            
+            ppox_ARGO_corr = ppox_ARGO_corr/(1 + (coef2*temp_interp + coef3) *dsargo_oxy['PRES'].isel(N_PROF=i_prof)/1000)  # We undo the pressure correction done in coriolis dac
+            ppox_ARGO_corr=  (1 + (coef2*temp_interp + coef_pres) *dsargo_oxy['PRES'].isel(N_PROF=i_prof)/1000) * ppox_ARGO_corr # We apply the new pressure effect
+
+        O2_ARGO_corr = O2ptoO2c(ppox_ARGO_corr,ds['TEMP'].isel(N_PROF=0),ds['PSAL'].isel(N_PROF=0),ds['PRES'].isel(N_PROF=0)) 
+        O2_ARGO_corr = O2_ARGO_corr * (1000/ana_dens[i_prof,:]) # Conversion en mmol/Kg
+        dsargo_oxy['DOXY_ADJUSTED'].loc[dict(N_PROF=i_prof)] =  O2_ARGO_corr 
+        dsargo_oxy['DOXY_ADJUSTED_ERROR'].loc[dict(N_PROF=i_prof)] =  O2_ARGO_corr * percent_relative_error /100
+
+
+
+
+    # FillValue where no DOXY DATA
+    dsargo_oxy['DOXY_ADJUSTED'] = dsargo_oxy['DOXY_ADJUSTED'].where(dsargo_oxy['DOXY']!=dsargo_oxy['DOXY'].attrs['_FillValue'],dsargo_oxy['DOXY_ADJUSTED'].attrs['_FillValue'])
+    #dsargo_oxy['DOXY_ADJUSTED'] = dsargo_oxy['DOXY_ADJUSTED'].where(((dsargo_oxy['DOXY_QC']==1) | (dsargo_oxy['DOXY_QC']==2) | (dsargo_oxy['DOXY_QC']==3)),dsargo_oxy['DOXY_ADJUSTED'].attrs['_FillValue'])
+    dsargo_oxy['DOXY_ADJUSTED_QC'] = dsargo_oxy['DOXY_QC']
+    mask = dsargo_oxy['DOXY_QC'].isin([b'1', b'2', b'3'])  # Flag 1/2/3 ==> flag 1 because they are corrected
+    dsargo_oxy['DOXY_ADJUSTED_QC'] = dsargo_oxy['DOXY_ADJUSTED_QC'].where(~mask, np.array(b'1', dtype='S1'))  
+
+    mask = dsargo_oxy['DOXY_ADJUSTED_QC'].isin([b'4', b'9'])  # Flag 4/9 ==> FillValue
+    dsargo_oxy['DOXY_ADJUSTED'] = dsargo_oxy['DOXY_ADJUSTED'].where(~mask, dsargo_oxy['DOXY_ADJUSTED'].attrs['_FillValue'])  
+    dsargo_oxy['DOXY_ADJUSTED_ERROR'] = dsargo_oxy['DOXY_ADJUSTED_ERROR'].where(dsargo_oxy['DOXY_ADJUSTED']!=dsargo_oxy['DOXY_ADJUSTED'].attrs['_FillValue'],dsargo_oxy['DOXY_ADJUSTED_ERROR'].attrs['_FillValue'])
+    #dsargo_oxy['DOXY_ADJUSTED'] = dsargo_oxy['DOXY_ADJUSTED'].where(((dsargo_oxy['DOXY_QC']==b'1') | (dsargo_oxy['DOXY_QC']==b'2') | (dsargo_oxy['DOXY_QC']==b'3')),dsargo_oxy['DOXY_ADJUSTED'].attrs['_FillValue'])
+
+
+
+    for n_prof, n_calib, n_param in zip(*doxy_index):
+        dsargo_oxy['PARAMETER_DATA_MODE'].loc[dict(N_PROF=n_prof,N_PARAM=n_param)] = 'D'
+        dsargo_oxy['DATA_MODE'].loc[dict(N_PROF=n_prof)] = 'D'
+
+    # Creation of dataset with variables with N_CALIB dimension
+    var_n_calib = [var for var in dsargo_oxy.data_vars if "N_CALIB" in dsargo_oxy[var].dims]
+    ds2 = dsargo_oxy[var_n_calib]
+    ds2 = xr.concat([ds2,ds2.isel(N_CALIB=-1)],dim='N_CALIB')
+    nb_calib = len(ds2['N_CALIB'])
+    #doxy_index = np.where(ds2['PARAMETER'].isel(N_CALIB=nb_calib-1).str.strip() =='DOXY') 
+    #doxy_index = np.where(ds2['PARAMETER'].isel(N_CALIB=nb_calib-1).str.strip().values =='DOXY') 
+
+    for n_prof, n_calib_bid, n_param in zip(*doxy_index):
+        ds2['SCIENTIFIC_CALIB_COMMENT'].loc[dict(N_PROF=n_prof,N_PARAM=n_param,N_CALIB=n_calib)] = list(('{: <256}'.format(comment_corr))) 
+        ds2['SCIENTIFIC_CALIB_DATE'].loc[dict(N_PROF=n_prof,N_PARAM=n_param,N_CALIB=n_calib)] = list(datetime.now().strftime("%Y%m%d%H%M%S"))
+        ds2['SCIENTIFIC_CALIB_COEFFICIENT'].loc[dict(N_PROF=n_prof,N_PARAM=n_param,N_CALIB=n_calib)] = list(('{: <256}'.format(coef_corr)))
+        ds2['SCIENTIFIC_CALIB_EQUATION'].loc[dict(N_PROF=n_prof,N_PARAM=n_param,N_CALIB=n_calib)] = list(('{: <256}'.format(eq_corr)))
+
+    
+    
+    ds3 = dsargo_oxy.drop_dims('N_CALIB')
+    ds3['DATE_UPDATE'][:] = list(datetime.now().strftime("%Y%m%d%H%M%S"))
+    ds3 = ds3.merge(ds2)
+    #ds3.to_netcdf(fic_res)
+
+    # PROFILE_DOXY_QC
+    good_flags = [b'1', b'2', b'5', b'8']
+    bad_flags = [b'3', b'4']
+
+    for i in range(ds3.sizes['N_PROF']):
+        doxy_qc_en_cours = ds3['DOXY_ADJUSTED_QC'].isel(N_PROF=i)
+        good_count = np.isin(doxy_qc_en_cours, good_flags).sum()
+        bad_count = np.isin(doxy_qc_en_cours, bad_flags).sum()
+        total = good_count + bad_count # flag 0 and 9 are ignored
+
+        if total!=0:
+            if good_count == total:  # Tous les DOXY_QC sont bons
+                ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b'A'
+            elif good_count / total >= 0.75:  # 75% des DOXY_QC sont bons
+                ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b'B'
+            elif good_count / total >= 0.5 :  # 75% des DOXY_QC sont bons
+                ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b'C'
+            elif good_count / total >= 0.25 :  # 75% des DOXY_QC sont bons
+                ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b'D'
+            elif good_count / total > 0 :  # 75% des DOXY_QC sont bons
+                ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b'D'
+            else:
+                ds3['PROFILE_DOXY_QC'].loc[dict(N_PROF=i)] = b' '
+    
+    dict_res = xarray_to_dict(ds3)
+    write_netcdf(fic_res,dict_res,'N_HISTORY')
+
+    dsargo_oxy.close()
+    ds.close()
     return None

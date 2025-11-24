@@ -1,6 +1,19 @@
 #########################################################
 # Model Function for curve_fit.
 #########################################################
+def model_AXplusB(X,A,B):
+    """ Function to estimate, with curve_fit, a line Y = AX + B 
+    
+    Parameters
+    ----------
+    X : Values
+
+    Returns
+    --------
+    A*X + B
+    """
+    return (A*X + B)
+    
 def model_Gain(X,G):
     """ Function to estimate, with curve_fit, a correction with a Gain 
 

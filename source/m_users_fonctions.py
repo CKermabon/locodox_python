@@ -3,6 +3,87 @@ import numpy as np
 import xarray as xr
 
 
+
+
+def write_param_results(dict_corr : dict,num_float : str,*args) :
+    """ Function to write the corrections estimated on screen on in an ASCII file
+    
+    Parameters
+    -----------
+    dict_corr : dict
+        dict of correction (label : value/error)
+    num_float : str
+        Float number
+    *args : optionnal
+        Name of the ASCII file
+        number of character after the comment to write the values (to align slope/drift/pressure effect in the file)
+    """
+    line_tot = []
+    if args:
+        fic = args[0]
+    else:
+        fic = None
+
+    line_tot.append(num_float)
+    
+    for index, (key, value) in enumerate(dict_corr.items()):
+        param =  value
+        nb_dim = param.ndim
+        if nb_dim==2:
+            nb_segment = 1
+        elif nb_dim == 3:
+            val_bid1,nb_segment,val_bid2 = param.shape
+
+        line_tot.append(key)
+        line = f"Nb piece : {nb_segment}"
+        line_tot.append(line)
+
+        if (nb_segment == 1):
+            if len(param[0]) == 1:
+                gain = param[0,0]
+                drift = 0
+                egain = param[1,0]
+                edrift = 0
+                coef_pres = 0
+                error_pres = 0
+            else:
+                gain = param[0,0]
+                drift = param[0,1]
+                egain = param[1,0]
+                edrift = param[1,1]
+                if len(param[0])==3:
+                    coef_pres = param[0,2]
+                    error_pres = param[1,2]
+                else:
+                    coef_pres = 0
+                    error_pres = 0
+
+            line = f"Gain/Drift/Pressure {gain:.4f}/{drift:.4f}/{coef_pres:.4f} with error {egain:.4f}/{edrift:.4f}/{error_pres:.4f}"
+            line_tot.append(line)
+
+        else:                      
+            for i in range(nb_segment):
+                gain, drift,*coef_pres = param[0,i]
+                egain,edrift,*error_pres = param[1,i]
+                if len(coef_pres)==0:
+                    coef_pres = 0
+                    error_pres = 0
+                else:
+                    coef_pres = coef_pres[0]
+                    error_pres = error_pres[0]
+                line = f"Piece {i+1}  : "f"Gain/Drift/Pressure {gain:.4f}/{drift:.4f}/{coef_pres:.4f} with error {egain:.4f}/{edrift:.4f}/{error_pres:.4f}"
+                line_tot.append(line)
+        
+    if fic is None:
+        for line in line_tot:
+            print(line)
+    else:
+        print('ecriture fichier')
+        with open(fic, 'w') as f:
+            for line in line_tot:
+                f.write(line + '\n')
+    return None
+
 #
 # Function to write the differents corrections estimated in an ASCII File.
 #
