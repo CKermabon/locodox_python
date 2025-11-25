@@ -35,8 +35,6 @@ def write_param_results(dict_corr : dict,num_float : str,*args) :
             val_bid1,nb_segment,val_bid2 = param.shape
 
         line_tot.append(key)
-        line = f"Nb piece : {nb_segment}"
-        line_tot.append(line)
 
         if (nb_segment == 1):
             if len(param[0]) == 1:
