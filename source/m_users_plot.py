@@ -9,7 +9,105 @@ import seawater as sw
 from m_users_fonctions import O2ctoO2s, diff_time_in_days, umolkg_to_umolL
 import copy
 
+
 def plot_WMO_position(ds_WMO: xr.Dataset,ds_bathy: xr.Dataset,depths: np.ndarray,extend_val: float) -> None :
+    """ Function to plot longitude/latitude with bathymetry
+
+    Parameters
+    -----------
+    ds_WMO : xr.Dataset
+        contains :
+        LONGITUDES
+        LATITUDES
+        CYCLE_NUMBER
+        PLATFORM_NUMBER (WMO)
+        (from Sprof Netcdf ARGO file)
+    ds_bathy : xr.Dataset
+        contains : 
+        x : Longitudes
+        y : Latitude
+        z : bathymetry
+    depths :np.ndarray
+        Bathymetry depths to contour
+    extend_val : float
+        The value to define the limits of the plot
+        (min(LONGITUDES)-extend val max(LONGITUDES+extend_val)
+        (min(LATITUDES)-extend val max(LATITUDES+extend_val)
+
+    Returns
+    -------
+    None
+    Only a plot is shown.
+    The plot plots the lon/lat and the bathymetry.
+    We use a Mercator projection.
+
+    """
+    ds_bathy_filtered = ds_bathy.where(
+        (ds_bathy['x'] >= ds_WMO['LONGITUDE'].min() - extend_val) &
+        (ds_bathy['x'] <= ds_WMO['LONGITUDE'].max() + extend_val) &
+        (ds_bathy['y'] >= ds_WMO['LATITUDE'].min() - extend_val) &
+        (ds_bathy['y'] <= ds_WMO['LATITUDE'].max() + extend_val),
+        drop=True
+    )
+
+    # Position on projection Mercator
+    N = len(depths)
+    nudge = 0.01  # shift bin edge slightly to include data
+    boundaries = [min(depths)] + sorted(depths+nudge)  # low to high
+    norm = matplotlib.colors.BoundaryNorm(boundaries, N)
+    blues_cm = matplotlib.colormaps['Blues_r'].resampled(N)
+    colors_depths = blues_cm(norm(depths))
+
+    fig = plt.figure()
+    ax = plt.axes(projection=ccrs.Mercator())
+    ax.set_extent([ds_WMO['LONGITUDE'].min()-extend_val,ds_WMO['LONGITUDE'].max()+extend_val,ds_WMO['LATITUDE'].min()-extend_val,ds_WMO['LATITUDE'].max()+extend_val],
+                  crs=ccrs.PlateCarree())
+
+    # Land in grey
+    ax.add_feature(cfeature.LAND, edgecolor='black', facecolor='grey')
+    # Ocean
+    ax.add_feature(cfeature.OCEAN) #, edgecolor='none', facecolor='lightblue')
+    ax.add_feature(cfeature.COASTLINE)
+
+    cs = ax.contourf(ds_bathy_filtered['x'],ds_bathy_filtered['y'], ds_bathy_filtered['z'], levels=depths.tolist(),transform=ccrs.PlateCarree(),cmap=plt.cm.bone)
+    sm = plt.cm.ScalarMappable(cmap=blues_cm, norm=norm)
+    cbar = plt.colorbar(cs, ax=ax, orientation='vertical', label='Depth (m)', shrink=0.7,fraction=0.05, pad=0.2)
+
+    # Positions
+    longitudes = ds_WMO['LONGITUDE']
+    latitudes = ds_WMO['LATITUDE']
+    num_positions = len(longitudes)
+    cycles = ds_WMO['CYCLE_NUMBER'].values  
+    colors = plt.cm.tab10(np.arange(num_positions) // 10 % 10)  # 1 color by 10
+    cycle_number_plot = ds_WMO['CYCLE_NUMBER'].values.astype(int)
+
+    norm = plt.Normalize(vmin=np.min(cycles), vmax=np.max(cycles))
+    cmap = matplotlib.colormaps.get_cmap('jet')  # Dégradé bleu -> rouge
+    colors = cmap(norm(cycles))  # Couleurs pour chaque profil
+
+    
+    # plot position with color and add the cycle number
+    ax.plot(longitudes, latitudes, color='black', linewidth=0.8, transform=ccrs.PlateCarree(), zorder=1)
+    for i, (lon, lat) in enumerate(zip(longitudes, latitudes)):
+        ax.scatter(lon, lat, color=colors[i], s=20, transform=ccrs.PlateCarree(), zorder=2,label=f'Group {i // 10}' if i % 10 == 0 else "")
+        if i % 5 == 0:
+            ax.text(lon, lat, str(cycle_number_plot[i]),color='black', fontsize=8, fontweight='bold',transform=ccrs.PlateCarree(),
+                    ha='left', va='center',zorder=3)
+    ax.text(lon, lat, str(cycle_number_plot[-1]),color='black', fontsize=8, fontweight='bold',transform=ccrs.PlateCarree(),
+             ha='left', va='center',zorder=3)
+    # dd a legend by group
+    #handles, labels = ax.get_legend_handles_labels()
+    #ax.legend(handles, labels, loc='upper right', title='Groups')
+    ax.set_xlabel('LONGITUDE')
+    ax.set_ylabel('LATITUDE')
+    ax.gridlines(draw_labels=True, linewidth=0.5, color='gray', alpha=0.7, linestyle='-')
+
+    plt.title(f"{ds_WMO['PLATFORM_NUMBER'].isel(N_PROF=0).values} : Region where the floats derived") 
+    plt.show()
+
+    return None
+    
+def plot_WMO_position_old(ds_WMO: xr.Dataset,ds_bathy: xr.Dataset,depths: np.ndarray,extend_val: float) -> None :
     """ Function to plot longitude/latitude with bathymetry
 
     Parameters
@@ -282,7 +380,7 @@ def plot_DOXY_cycle(ds_WMO1 : xr.Dataset,strvar : str='',qc_keep : list=[1,2,3,4
 
     plt.gca().invert_yaxis()
 
-    plt.xlabel(' Oxygen (OXY' + strvar +')')
+    plt.xlabel(' Oxygen (OXY' + strvar +') (QC = ' + str(qc_keep) + ')')
     plt.ylabel(' Pressure (PRES' + strvar+')')
     plt.title(ds_WMO['PLATFORM_NUMBER'].values[0])
     plt.grid()
@@ -502,7 +600,7 @@ def plot_cmp_corr_NCEP(dict_corr : dict, list_pieceT : list, dsair : xr.Dataset,
                 val_corr_en_cours = val_corr
             else:
                 val_corr_en_cours = val_corr[i_morceaux]
-                mask = (delta_T >= pieceT[i_morceaux]) & (delta_T < pieceT[i_morceaux+1])
+                mask = (delta_T >= pieceT[i_morceaux]) & (delta_T <= pieceT[i_morceaux+1])
                 
             print(val_corr_en_cours)
                                                           
@@ -659,7 +757,7 @@ def plot_cmp_corr_NCEP_with_error(dict_corr : dict,  list_pieceT : list, dsair :
             else:
                 val_corr_en_cours = val_corr[i_morceaux]
                 perr_en_cours = perr_corr[i_morceaux]
-                mask = (delta_T >= pieceT[i_morceaux]) & (delta_T < pieceT[i_morceaux+1])
+                mask = (delta_T >= pieceT[i_morceaux]) & (delta_T <= pieceT[i_morceaux+1])
                 
             print(val_corr_en_cours)
             print(perr_en_cours)
@@ -849,7 +947,7 @@ def plot_cmp_corr_WOA(dict_corr : dict, list_pieceT : list, ds_argo_interp : xr.
                 val_corr_en_cours = val_corr
             else:
                 val_corr_en_cours = val_corr[i_morceaux]
-                mask = (tab_delta_T >= pieceT[i_morceaux]) & (tab_delta_T < pieceT[i_morceaux+1])
+                mask = (tab_delta_T >= pieceT[i_morceaux]) & (tab_delta_T <= pieceT[i_morceaux+1])
                 
             print(val_corr_en_cours)
                                                           
@@ -945,7 +1043,7 @@ def plot_cmp_corr_WOA_with_error(dict_corr : dict,  list_pieceT : list, ds_argo_
             else:
                 val_corr_en_cours = val_corr[i_morceaux]
                 perr_en_cours = perr_corr[i_morceaux]
-                mask = (tab_delta_T >= pieceT[i_morceaux]) & (tab_delta_T < pieceT[i_morceaux+1])
+                mask = (tab_delta_T >= pieceT[i_morceaux]) & (tab_delta_T <= pieceT[i_morceaux+1])
 
             print(val_corr_en_cours)
             
