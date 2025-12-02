@@ -20,7 +20,7 @@ def open_WOA_file(fic_WOA: str) -> xr.Dataset:
 
     """
     ds = xr.open_dataset(fic_WOA)
-    print(f'We force Longitude in [-180 180]')
+    print(f'WOA : We force Longitude in [-180 180]')
     ds['longitude'] = xr.where(ds['longitude'] > 180, ds['longitude'] - 360, ds['longitude'])
     ds = ds.rename_dims({'Depth':'N_LEVELS'})
     return ds

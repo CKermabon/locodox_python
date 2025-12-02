@@ -1356,7 +1356,7 @@ def plot_cmp_corr_oxy_woa(ds_argo_Sprof : xr.Dataset, ds_woa : xr.Dataset) -> No
     return None
     
 
-def plot_ref_div_argo(x : np.ndarray,ref : np.ndarray,data : np.ndarray):
+def plot_ref_div_argo(x : np.ndarray,ref : np.ndarray,data : np.ndarray,numfloat : str):
     """ Function to plot the linear line correction
 
     Parameters
@@ -1378,5 +1378,81 @@ def plot_ref_div_argo(x : np.ndarray,ref : np.ndarray,data : np.ndarray):
     plt.grid()
     plt.xlabel('DeltaT')
     plt.ylabel('REF/ARGO_DATA')
+    plt.title(numfloat)
     plt.show()
+    return None
+
+
+def plot_cmp_correction_with_WOA(ds : xr.Dataset,deltaT:np.ndarray,breaks_point:np.ndarray,correction1:np.ndarray,correction2:np.ndarray,ds_woa:xr.Dataset,str_chaine : str,pcoef2:int,pcoef3:int):
+    """ Function to compare data corrected with 2 corrections with WOA
+    ds : xr.Dataset
+        Argo Data with DOXY
+    deltaT : np.ndarray
+        Number of days from launch date
+    breaks_point :  np.ndarray
+        Breakpoint for correction in days 
+        [D1 D2 D3] : 2 peies (from D1 to D2 and D2 to D3)
+    correction1, correcrtion2 : correction (gain/Drift/pressure effect)
+    ds_woa : WOA Data interpolated on ARGO time
+    str_chaine : str
+        Indicate if we use the ADJUSTED or RaW data for the pressure label on the plot
+    pcoef2,pcoef3 : default parameter for pressure effect
+
+    A plot is created
+    """
+    results_corr1 = []
+    results_corr2 = []
+    for i in ds.N_PROF.values:
+        delta_T_en_cours = deltaT[i]
+        nb_segment = len(breaks_point)-1
+        if nb_segment>1:
+            index = next((x for x, val in enumerate(np.array(breaks_point)) if val>= delta_T_en_cours),None)
+            if index is None :
+                if delta_T_en_cours < breaks_point[0] :
+                    index = 0
+                elif delta_T_en_cours > breaks_point[-1] :
+                    index = len(breaks_point)
+            if index > 0:
+                index = index -1
+            corr1 = correction1[index,:]
+            corr2 = correction2[index,:]
+        else :
+            corr1 = correction1
+            corr2 = correction2
+
+        coef_pres = corr1[2]
+        gain_final = corr1[0]
+        derive_final = corr1[1] 
+        doxy_initial = ds['DOXY'].isel(N_PROF=i)
+        if coef_pres != 0:
+            doxy_corr = (gain_final * (1+derive_final/100*delta_T_en_cours/365) /(1 + (pcoef2*ds['TEMP'].isel(N_PROF=i) + pcoef3) *ds['PRES'].isel(N_PROF=i)) * (1 + (pcoef2*ds['TEMP'].isel(N_PROF=i) + coef_pres) *ds['PRES'].isel(N_PROF=i)))*doxy_initial
+        else :
+            doxy_corr = (gain_final * (1+derive_final/100*delta_T_en_cours/365))*doxy_initial
+
+        results_corr1.append(doxy_corr)
+        
+        coef_pres = corr2[2]
+        gain_final = corr2[0]
+        derive_final = corr2[1] 
+        if coef_pres != 0:
+            doxy_corr = (gain_final * (1+derive_final/100*delta_T_en_cours/365) /(1 + (pcoef2*ds['TEMP'].isel(N_PROF=i) + pcoef3) *ds['PRES'].isel(N_PROF=i)) * (1 + (pcoef2*ds['TEMP'].isel(N_PROF=i) + coef_pres) *ds['PRES'].isel(N_PROF=i)))*doxy_initial
+        else:
+            doxy_corr = (gain_final * (1+derive_final/100*delta_T_en_cours/365)) *doxy_initial
+            
+        results_corr2.append(doxy_corr)
+    
+    doxy_corr1 = xr.concat(results_corr1, dim='N_PROF')
+    doxy_corr2 = xr.concat(results_corr2, dim='N_PROF')
+
+    plt.figure()
+    h1=plt.plot(ds['DOXY'],ds['PRES'+str_chaine],'*-k')
+    plt.gca().invert_yaxis()
+    h2=plt.plot(doxy_corr1,ds['PRES'+str_chaine],'*-b')
+    h3=plt.plot(doxy_corr2,ds['PRES'+str_chaine],'*-r')
+    plt.grid()
+    plt.xlabel('DOXY')
+    plt.ylabel('PRESSURE'+str_chaine)
+    h4 = plt.plot(ds_woa['doxywoa'],ds_woa['preswoa'],'m')
+    _=plt.legend([h1[0],h2[0],h3[0],h4[0]],['Raw','Correction1','Correction2','WOA'],draggable=True)
+
     return None
