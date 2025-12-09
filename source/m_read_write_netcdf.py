@@ -411,6 +411,7 @@ def corr_file_with_ppox(fic_en_cours : str,fic_res : str,launch_date : np.dateti
 
     for i_prof in range(nb_profil):
         ppox_ARGO_corr = (gain_final * (1+drift_final/100 * delta_T[i_prof,:]/365))* ppox_cycle[i_prof,:] # A rajouter offset si on en a 1 differente de 0.
+        # Il faudrait effectuer la conversion de ppox en DOXY pour appliquer effet de pression sur DOXY.
         if coef_pres != 0:
             dir_name = os.path.dirname(fic_en_cours)
             base_name = os.path.basename(fic_en_cours)
@@ -426,7 +427,9 @@ def corr_file_with_ppox(fic_en_cours : str,fic_res : str,launch_date : np.dateti
             # Interpolation de TEMP sur PRES de ds1 pour ce profil
             temp_interp = np.interp(dsargo_oxy['PRES'].isel(N_PROF=i_prof), ds_ctd['PRES'].isel(N_PROF=i_prof), ds_ctd['TEMP'].isel(N_PROF=i_prof))
             ds_ctd.close()
-            
+
+            # Attention :  Not correct.
+            # Pressure effect must be done on DOXY data.
             ppox_ARGO_corr = ppox_ARGO_corr/(1 + (coef2*temp_interp + coef3) *dsargo_oxy['PRES'].isel(N_PROF=i_prof)/1000)  # We undo the pressure correction done in coriolis dac
             ppox_ARGO_corr=  (1 + (coef2*temp_interp + coef_pres) *dsargo_oxy['PRES'].isel(N_PROF=i_prof)/1000) * ppox_ARGO_corr # We apply the new pressure effect
 
