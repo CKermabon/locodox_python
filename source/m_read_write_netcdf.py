@@ -228,6 +228,15 @@ def corr_file(fic_en_cours : str,fic_res : str,launch_date : np.datetime64,comme
     doxy_index = np.where(dsargo_oxy['PARAMETER'].str.strip() =='DOXY')
     dsargo_oxy.close()
 
+    dir_name = os.path.dirname(fic_en_cours)
+    base_name = os.path.basename(fic_en_cours)
+    raw_file = 'R' + base_name[2:]
+    full_raw_file = os.path.join(dir_name, raw_file)
+    if os.path.exists(full_raw_file)==False:
+        raw_file = 'D' + base_name[2:]
+        full_raw_file = os.path.join(dir_name, raw_file)
+                
+    ds_ctd = xr.open_dataset(full_raw_file,engine='argo')
     
 
     dsargo_oxy = xr.open_dataset(fic_en_cours,decode_cf = False)
@@ -266,8 +275,10 @@ def corr_file(fic_en_cours : str,fic_res : str,launch_date : np.datetime64,comme
     dsargo_oxy['DOXY_ADJUSTED'] = dsargo_oxy['DOXY_ADJUSTED'].where(dsargo_oxy['DOXY']!=dsargo_oxy['DOXY'].attrs['_FillValue'],dsargo_oxy['DOXY_ADJUSTED'].attrs['_FillValue'])
     #dsargo_oxy['DOXY_ADJUSTED'] = dsargo_oxy['DOXY_ADJUSTED'].where(((dsargo_oxy['DOXY_QC']==1) | (dsargo_oxy['DOXY_QC']==2) | (dsargo_oxy['DOXY_QC']==3)),dsargo_oxy['DOXY_ADJUSTED'].attrs['_FillValue'])
     dsargo_oxy['DOXY_ADJUSTED_QC'] = dsargo_oxy['DOXY_QC']
-    mask = dsargo_oxy['DOXY_QC'].isin([b'1', b'2', b'3'])  # Flag 1/2/3 ==> flag 1 because they are corrected
+    mask = (dsargo_oxy['DOXY_QC'].isin([b'1', b'2', b'3']) & ds_ctd['PSAL_QC'].isin([1,2,3]) & ds_ctd['PRES_QC'].isin([1,2,3])) # Flag DOXY_QC in1/2/3 AND PSAL_QC/PRES_QC>=3 ==> flag 1 because they are corrected
     dsargo_oxy['DOXY_ADJUSTED_QC'] = dsargo_oxy['DOXY_ADJUSTED_QC'].where(~mask, np.array(b'1', dtype='S1'))  
+    mask = (ds_ctd['PSAL_QC'].isin([4]) | ds_ctd['PRES_QC'].isin([4])) # Flag DOXY_QC in1/2/3 AND PSAL_QC/PRES_QC>=3 ==> flag 1 because they are corrected
+    dsargo_oxy['DOXY_ADJUSTED_QC'] = dsargo_oxy['DOXY_ADJUSTED_QC'].where(~mask, np.array(b'4', dtype='S1'))  
 
     mask = dsargo_oxy['DOXY_ADJUSTED_QC'].isin([b'4', b'9'])  # Flag 4/9 ==> FillValue
     dsargo_oxy['DOXY_ADJUSTED'] = dsargo_oxy['DOXY_ADJUSTED'].where(~mask, dsargo_oxy['DOXY_ADJUSTED'].attrs['_FillValue'])  
@@ -329,6 +340,7 @@ def corr_file(fic_en_cours : str,fic_res : str,launch_date : np.datetime64,comme
     write_netcdf(fic_res,dict_res,'N_HISTORY')
 
     dsargo_oxy.close()
+    ds_ctd.close()
     return None
 
 
