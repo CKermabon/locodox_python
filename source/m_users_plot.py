@@ -1425,7 +1425,7 @@ def plot_cmp_correction_with_WOA(ds : xr.Dataset,deltaT:np.ndarray,breaks_point:
         derive_final = corr1[1] 
         doxy_initial = ds['DOXY'].isel(N_PROF=i)
         if coef_pres != 0:
-            doxy_corr = (gain_final * (1+derive_final/100*delta_T_en_cours/365) /(1 + (pcoef2*ds['TEMP'].isel(N_PROF=i) + pcoef3) *ds['PRES'].isel(N_PROF=i)) * (1 + (pcoef2*ds['TEMP'].isel(N_PROF=i) + coef_pres) *ds['PRES'].isel(N_PROF=i)))*doxy_initial
+            doxy_corr = (gain_final * (1+derive_final/100*delta_T_en_cours/365) /(1 + (pcoef2*ds['TEMP'].isel(N_PROF=i) + pcoef3) *ds['PRES'].isel(N_PROF=i)/1000) * (1 + (pcoef2*ds['TEMP'].isel(N_PROF=i) + coef_pres) *ds['PRES'].isel(N_PROF=i)/1000))*doxy_initial
         else :
             doxy_corr = (gain_final * (1+derive_final/100*delta_T_en_cours/365))*doxy_initial
 
@@ -1435,7 +1435,7 @@ def plot_cmp_correction_with_WOA(ds : xr.Dataset,deltaT:np.ndarray,breaks_point:
         gain_final = corr2[0]
         derive_final = corr2[1] 
         if coef_pres != 0:
-            doxy_corr = (gain_final * (1+derive_final/100*delta_T_en_cours/365) /(1 + (pcoef2*ds['TEMP'].isel(N_PROF=i) + pcoef3) *ds['PRES'].isel(N_PROF=i)) * (1 + (pcoef2*ds['TEMP'].isel(N_PROF=i) + coef_pres) *ds['PRES'].isel(N_PROF=i)))*doxy_initial
+            doxy_corr = (gain_final * (1+derive_final/100*delta_T_en_cours/365) /(1 + (pcoef2*ds['TEMP'].isel(N_PROF=i) + pcoef3) *ds['PRES'].isel(N_PROF=i)/1000) * (1 + (pcoef2*ds['TEMP'].isel(N_PROF=i) + coef_pres) *ds['PRES'].isel(N_PROF=i)/1000))*doxy_initial
         else:
             doxy_corr = (gain_final * (1+derive_final/100*delta_T_en_cours/365)) *doxy_initial
             
