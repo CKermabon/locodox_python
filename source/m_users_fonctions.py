@@ -140,15 +140,27 @@ def write_param_results(dict_corr : dict,num_float : str,*args) :
         Float number
     *args : optionnal
         Name of the ASCII file
-        number of character after the comment to write the values (to align slope/drift/pressure effect in the file)
+        Info_CTD/ctd_number/cycle_number/CTD_file)
     """
     line_tot = []
     if args:
         fic = args[0]
+        info_ctd = args[1]
+        liste_ctd = args[2]
+        liste_cycle = args[3]
+        fic_ctd = args[4]
+        pres_threshold = args[5]
     else:
         fic = None
+        info_ctd = 0
 
     line_tot.append(num_float)
+    
+    if info_ctd==1:
+        line = f"Ctd/Cycle comparison : "
+        line_tot.append(line)
+        line = f"File  {fic_ctd} / CTD {liste_ctd} / Cycle  {liste_cycle} / Pressure_threshold {pres_threshold}"
+        line_tot.append(line)
     
     for index, (key, value) in enumerate(dict_corr.items()):
         param =  value
