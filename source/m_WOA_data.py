@@ -20,9 +20,11 @@ def open_WOA_file(fic_WOA: str) -> xr.Dataset:
 
     """
     ds = xr.open_dataset(fic_WOA)
-    print(f'WOA : We force Longitude in [-180 180]')
+    print(f'WOA : We force Longitude in [-180 180] and sorted longitude')
     ds['longitude'] = xr.where(ds['longitude'] > 180, ds['longitude'] - 360, ds['longitude'])
     ds = ds.rename_dims({'Depth':'N_LEVELS'})
+    ds = ds.sortby('longitude')
+
     return ds
     
 def interp_WOA_on_ARGO(ds_woa : xr.Dataset, ds_argo : xr.Dataset) -> xr.Dataset:
