@@ -1,0 +1,13 @@
+conda create --name pydox_conda_forge python=3.10 --channel conda-forge
+conda activate pydox_conda_forge
+conda install matplotlib -c conda-forge --override-channels
+conda install scipy -c conda-forge --override-channels
+conda install argopy -c conda-forge --override-channels
+conda install seawater -c conda-forge --override-channels
+conda install cartopy -c conda-forge --override-channels
+conda install dask -c conda-forge --override-channels
+conda install ipympl -c conda-forge --override-channels
+conda install pwlf -c conda-forge --override-channels
+conda install ipykernel -c conda-forge --override-channels
+python -m ipykernel install --user --name 'pydox_conda_forge'
+conda install -c conda-forge jupyterlab

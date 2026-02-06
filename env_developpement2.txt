@@ -1,0 +1,72 @@
+﻿Installer jupyter-notebook/etc dans l’environnement conda de base
+conda activate base
+conda install jupyter
+⇒ A utiliser juste pour lancer jupyter-lab/notebook/ etc.
+Lancer tout le temps le même jupyter-lab/jupyter-notebook.
+Inutile d’en avoir plusieurs d’installés. L’essentiel est que l’environnement conda/python soit visible de ce jupyter.
+
+Dans .cshrc, conda activate base (pour activer env conda de base)
+Dans .condarc (debase et/ou de l'environnement en cours), enlever le channel defaults. Ne garder que le channel conda-forge
+
+Creation environnement de developpement :
+conda create -n locodox_env python=3.10
+
+Activation de l’environnement :
+A activer uniquement pour installer module/package
+conda activate locodox_env
+conda list (pour voir ce qui est installé)
+
+Verification de la version de python dans l’environnement activé :
+python –version (Python 3.10.13 dans locodox_env)
+
+Verifier que le fichier kernel.json ainsi créé est correct 'ie que le python utilisé est bien celui de l'environnement (/Users/chemon/Library/Jupyter/kernels/locodox_env/kernel.json)
+
+conda install -c conda-forge xarray dask netCDF4 bottleneck
+conda install ipykernel (indique que l’on souhaite que cet environnement soit accessible de jupyter)
+
+#Rajouter cet environnement dans les noyaux accessibles de jupyter-notebook :
+#python -m ipykernel install --user –name=’locodox_env’  
+python -m ipykernel install --name locodox_env --user
+
+Ajout de librairies :
+conda install scipy -c conda-forge
+conda install argopy -c conda-forge
+conda install matplotlib -c conda-forge
+conda install seawater -c conda-forge
+conda install cartopy -c conda-forge
+
+Pour ne pas utiliser le channels defaults (desormais payant), ni les channels du fichier .condarc, il faut faire :
+
+conda install matplotlib -c conda-forge –-override-channels
+
+Pour pouvoir faire des zooms sur les plots, il semble qu'il faille installer ipympl ET dans l'environnement de base (d'où l'on prend le jupyter-lab) ET dans l'environnement de travail (locodox_env). L'installation est faite dans les 2 environnements par : conda install -c conda-forge ipympl
+
+
+
+
+Environnement avec uniquement conda-forge (car le channels defaults est désormais payant) :
+
+conda create --name locodox_conda_forge python=3.10 --channel conda-forge –override-channels
+
+conda config --env --add channels conda-forge
+
+conda config --env --remove channels defaults (mais ca semble ne pas marcher car defaults est toujours dans les channels)
+Il est préférable de modifier manuellement le fichier .condarc du répertoire de l'environnement (locodox_conda_forge), n'autoriser que conda_forge dans les channels
+
+conda config --env --set channel_priority strict
+
+conda config –-show
+
+conda install matplotlib -c conda-forge --override-channels
+conda install scipy -c conda-forge --override-channels
+conda install argopy -c conda-forge –-override-channels
+conda install seawater -c conda-forge –-override-channels
+conda install cartopy -c conda-forge –-override-channels
+conda install ipykernel -c conda-forge –-override-channels
+python -m ipykernel install --user --name 'locodox_conda_forge'
+conda install -c conda-forge ipympl –-override-channels
+conda install -c conda-forge dask –-override-channels
+
+pip install pwlf
+
+
