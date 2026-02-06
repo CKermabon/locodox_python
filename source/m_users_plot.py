@@ -197,7 +197,95 @@ def plot_WMO_position_old(ds_WMO: xr.Dataset,ds_bathy: xr.Dataset,depths: np.nda
 
     return None
 
-def plot_CTD_Argo_Pos(ds_WMO : xr.Dataset, ds_bathy: xr.Dataset,depths: np.ndarray,extend_val: float,rep_ctd : str,fic_ctd : str,num_ctd : np.ndarray,num_cycle:np.ndarray):
+def plot_CTD_Argo_Pos(ds_WMO : xr.Dataset, ds_cruise: xr.Dataset, ds_bathy: xr.Dataset,depths: np.ndarray,extend_val: float):
+    
+    """ Function to plot CTD and ARGO longitude/latitude used to compare with bathymetry
+
+    Parameters
+    -----------
+    ds_WMO : xr.Dataset for 1 cycle
+        contains :
+        LONGITUDES
+        LATITUDES
+        CYCLE_NUMBER
+        PLATFORM_NUMBER (WMO)
+        (from Sprof Netcdf ARGO file)
+    ds_cruise : xr.Dataset contains CTD information
+    ds_bathy : xr.Dataset
+        contains : 
+        x : Longitudes
+        y : Latitude
+        z : bathymetry
+    depths :np.ndarray
+        Bathymetry depths to contour
+    extend_val : float
+        The value to define the limits of the plot
+        (min(LONGITUDES)-extend val max(LONGITUDES+extend_val)
+        (min(LATITUDES)-extend val max(LATITUDES+extend_val)
+    
+    Returns
+    -------
+    None
+    Only a plot is shown.
+    The plot plots the CTD and ARGO lon/lat used for comparison.
+    We also plot the bathymetry.
+    We use a Mercator projection.
+
+    """
+    ds_bathy_filtered = ds_bathy.where(
+        (ds_bathy['x'] >= ds_WMO['LONGITUDE'].min() - extend_val) &
+        (ds_bathy['x'] <= ds_WMO['LONGITUDE'].max() + extend_val) &
+        (ds_bathy['y'] >= ds_WMO['LATITUDE'].min() - extend_val) &
+        (ds_bathy['y'] <= ds_WMO['LATITUDE'].max() + extend_val),
+        drop=True
+    )
+
+    ds_WMO2 = copy.deepcopy(ds_WMO)
+    # Position on projection Mercator
+    N = len(depths)
+    nudge = 0.01  # shift bin edge slightly to include data
+    boundaries = [min(depths)] + sorted(depths+nudge)  # low to high
+    norm = matplotlib.colors.BoundaryNorm(boundaries, N)
+    blues_cm = matplotlib.colormaps['Blues_r'].resampled(N)
+    colors_depths = blues_cm(norm(depths))
+
+    fig = plt.figure()
+    ax = plt.axes(projection=ccrs.Mercator())
+    ax.set_extent([ds_WMO2['LONGITUDE'].min()-extend_val,ds_WMO2['LONGITUDE'].max()+extend_val,ds_WMO2['LATITUDE'].min()-extend_val,ds_WMO2['LATITUDE'].max()+extend_val],
+                  crs=ccrs.PlateCarree())
+
+    # Land in grey
+    ax.add_feature(cfeature.LAND, edgecolor='black', facecolor='grey')
+    # Ocean
+    ax.add_feature(cfeature.OCEAN) #, edgecolor='none', facecolor='lightblue')
+    ax.add_feature(cfeature.COASTLINE)
+
+    cs = ax.contourf(ds_bathy_filtered['x'],ds_bathy_filtered['y'], ds_bathy_filtered['z'], levels=depths.tolist(),transform=ccrs.PlateCarree(),cmap=plt.cm.bone)
+    sm = plt.cm.ScalarMappable(cmap=blues_cm, norm=norm)
+    cbar = plt.colorbar(cs, ax=ax, orientation='vertical', label='Depth (m)', shrink=0.7,fraction=0.05, pad=0.2)
+
+    # Positions
+    
+    lon = ds_cruise['LONGITUDE']
+    lat = ds_cruise['LATITUDE']
+    h_ctd = ax.scatter(lon, lat, color='blue', s=20, marker='D',transform=ccrs.PlateCarree())#, zorder=1)
+    lon = ds_WMO2['LONGITUDE']
+    lat = ds_WMO2['LATITUDE']
+    h_argo = ax.scatter(lon, lat, color='cyan', s=20, marker = 'o',transform=ccrs.PlateCarree())#, zorder=1)
+
+    
+    ax.set_xlabel('LONGITUDE')
+    ax.set_ylabel('LATITUDE')
+    ax.gridlines(draw_labels=True, linewidth=0.5, color='gray', alpha=0.7, linestyle='-')
+
+    plt.title(f"{ds_WMO2['PLATFORM_NUMBER'].isel(N_PROF=0).values:.0f} : CTD/ARGO") 
+    ax.legend([h_ctd,h_argo],['CTD','Argo'])
+    plt.show()
+    return None
+
+
+
+def plot_CTD_Argo_Pos_old(ds_WMO : xr.Dataset, ds_bathy: xr.Dataset,depths: np.ndarray,extend_val: float,rep_ctd : str,fic_ctd : str,num_ctd : np.ndarray,num_cycle:np.ndarray):
     
     """ Function to plot CTD and ARGO longitude/latitude used to compare with bathymetry
 
@@ -291,6 +379,7 @@ def plot_CTD_Argo_Pos(ds_WMO : xr.Dataset, ds_bathy: xr.Dataset,depths: np.ndarr
 
     plt.title(f"{ds_cycle['PLATFORM_NUMBER'].isel(N_PROF=0).values:.0f} : CTD/ARGO") 
     ax.legend([h_ctd,h_argo],['CTD','Argo'])
+    plt.show()
     return None
 
 
@@ -544,6 +633,7 @@ def plot_ppox_Inair_Inwater_Ncep(dsair : xr.Dataset, dsinwater : xr.Dataset, nce
     plt.xlabel('CYCLE_NUMBER')
     plt.ylabel('PPOX')
     _=plt.legend(['NCEP','INAIR','INWATER'])
+    plt.show()
 
     return None
 
@@ -627,6 +717,8 @@ def plot_cmp_corr_NCEP(dict_corr : dict, list_pieceT : list, dsair : xr.Dataset,
     plt.xlabel('JULD')
     plt.ylabel('Time Drift Gain')
     #leg=plt.legend(draggable=True) 
+
+    plt.show()
 
     return None
 
@@ -788,6 +880,8 @@ def plot_cmp_corr_NCEP_with_error(dict_corr : dict,  list_pieceT : list, dsair :
     plt.ylabel('PPOX')
     leg=plt.legend(draggable=True) 
 #_=plt.legend() #loc='lower left', bbox_to_anchor=(1, 0))
+
+    plt.show()
 
     return None
 
@@ -967,6 +1061,8 @@ def plot_cmp_corr_WOA(dict_corr : dict, list_pieceT : list, ds_argo_interp : xr.
     plt.ylabel('PSAT')
     _=plt.legend(draggable=True)
 
+    plt.show()
+
     return None
 
 
@@ -1089,6 +1185,8 @@ def plot_cmp_corr_WOA_with_error(dict_corr : dict,  list_pieceT : list, ds_argo_
     plt.xlabel('DELTA JULD')
     plt.ylabel('PSAT')
     _=plt.legend(draggable=True)
+
+    plt.show()
 
     return None
 
@@ -1298,7 +1396,7 @@ def plot_cmp_ARGO_CTD(dsctd : xr.Dataset,ds_cycle : xr.Dataset, dict_corr : dict
     #tab_delta_T = np.vstack([delta_T_cycle1]*len(ds_cycle1['N_LEVELS'])).transpose()
 
     plt.figure()
-    plt.plot(dsctd['OXYK'].isel(N_PROF=0), dsctd['PRES'].isel(N_PROF=0), 'x--b', label='CTD')[0]
+    plt.plot(dsctd['DOXY'].isel(PROF=0), dsctd['PRES'].isel(PROF=0), 'x--b', label='CTD')[0]
     plt.plot(ds_cycle['DOXY'].isel(N_PROF=0),ds_cycle['PRES'].isel(N_PROF=0),'x--k',label='RAW')[0]
 
     i_coul = -1
@@ -1324,6 +1422,8 @@ def plot_cmp_ARGO_CTD(dsctd : xr.Dataset,ds_cycle : xr.Dataset, dict_corr : dict
     plt.xlabel('DOXY')
     plt.ylabel('PRES')
     _=plt.legend(draggable=True)
+
+    plt.show()
 
     return None
 
@@ -1352,6 +1452,8 @@ def plot_cmp_corr_oxy_woa(ds_argo_Sprof : xr.Dataset, ds_woa : xr.Dataset) -> No
     plt.xlabel('DOXY')
     plt.ylabel('PRES')
     _=plt.legend([h1,h2,h3],['ADJUSTED','RAW','WOA'],draggable=True)
+
+    plt.show()
 
     return None
     
@@ -1454,5 +1556,7 @@ def plot_cmp_correction_with_WOA(ds : xr.Dataset,deltaT:np.ndarray,breaks_point:
     plt.ylabel('PRESSURE'+str_chaine)
     h4 = plt.plot(ds_woa['doxywoa'],ds_woa['preswoa'],'m')
     _=plt.legend([h1[0],h2[0],h3[0],h4[0]],['Raw','Correction1','Correction2','WOA'],draggable=True)
+
+    plt.show()
 
     return None

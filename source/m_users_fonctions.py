@@ -1,6 +1,72 @@
 # Definition de fonctions utiles
 import numpy as np
 import xarray as xr
+import pandas as pd
+from scipy.io import loadmat
+import copy
+
+
+def cherche_info_ctd_ref(fic_txt,fic_mat,num_float):
+    data_bdd = pd.read_csv(fic_txt,sep='\s+',header=None,names=['wmo','cycle','cruise_name','station_number'])
+    info_float = data_bdd[data_bdd['wmo'] == int(num_float)]
+    num_cycle = np.array(info_float['cycle']) #np.array([1]) #np.array([5]) 
+    num_ctd = np.array(info_float['station_number']) #np.array([1]) #np.array([5]) 
+    cruise_name = info_float['cruise_name']
+    data = loadmat(fic_mat)
+    struct_data=data['REF']
+    ids = [struct_data['id'][0, 0][i][0][0]
+       for i in range(struct_data['id'][0, 0].shape[0])]
+
+    cruise_name = cruise_name.tolist()
+    
+    pres_list = []
+    psal_list = []
+    temp_list = []
+    doxy_list = []
+    ctd_info_list = []
+    data_lon = np.empty(len(num_cycle))
+    data_lat = np.empty(len(num_cycle))
+
+    for i in range(0,len(num_ctd)):
+        print(num_ctd[i])
+        chaine_find = cruise_name[i] + '_' + str(num_ctd[i])
+        print(chaine_find)
+        idx = next(i for i, v in enumerate(ids) if v == chaine_find)
+        data_lon[i] = struct_data['lon'][0,0][idx]
+        data_lat[i] = struct_data['lat'][0,0][idx]
+        data_pres = struct_data['pres'][0,0][idx]
+        pres_list.append(data_pres)
+        data_doxy = struct_data['doxy'][0,0][idx]
+        doxy_list.append(data_doxy)
+        data_temp =  struct_data['temp'][0,0][idx]
+        temp_list.append(data_temp)
+        data_psal =  struct_data['psal'][0,0][idx]
+        psal_list.append(data_psal)
+        ctd_info_list.append(cruise_name[i])
+
+    data_pres_tot = np.vstack(pres_list)
+    data_doxy_tot = np.vstack(doxy_list)
+    data_psal_tot = np.vstack(psal_list)
+    data_temp_tot = np.vstack(temp_list)
+
+    ds_cruise = xr.Dataset(
+        data_vars={
+            "PRES": (("PROF", "LEVEL"), data_pres_tot),
+            "PSAL": (("PROF", "LEVEL"), data_psal_tot),
+            "TEMP": (("PROF", "LEVEL"), data_temp_tot),
+            "DOXY": (("PROF", "LEVEL"), data_doxy_tot),
+            "LONGITUDE":(("PROF",), data_lon),
+            "LATITUDE":(("PROF",), data_lat),
+            "STATION_NUMBER": (("PROF",), num_ctd),
+            "STATION_CRUISE": (("PROF",), ctd_info_list),
+        },
+        coords={
+            "LEVEL": np.arange(data_pres_tot.shape[1]),
+            "PROF": np.arange(data_pres_tot.shape[0]),
+        }
+    )
+
+    return num_ctd, num_cycle, cruise_name, ds_cruise 
 
 
 
@@ -148,7 +214,7 @@ def write_param_results(dict_corr : dict,num_float : str,*args) :
         info_ctd = args[1]
         liste_ctd = args[2]
         liste_cycle = args[3]
-        fic_ctd = args[4]
+        cruise_name = args[4]
         pres_threshold = args[5]
     else:
         fic = None
@@ -159,7 +225,7 @@ def write_param_results(dict_corr : dict,num_float : str,*args) :
     if info_ctd==1:
         line = f"Ctd/Cycle comparison : "
         line_tot.append(line)
-        line = f"File  {fic_ctd} / CTD {liste_ctd} / Cycle  {liste_cycle} / Pressure_threshold {pres_threshold}"
+        line = f"Cruise  {cruise_name} / CTD {liste_ctd} / Cycle  {liste_cycle} / Pressure_threshold {pres_threshold}"
         line_tot.append(line)
     
     for index, (key, value) in enumerate(dict_corr.items()):
