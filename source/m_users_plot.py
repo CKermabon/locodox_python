@@ -5,7 +5,7 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import xarray as xr
 import numpy as np
-import seawater as sw
+import gsw
 from m_users_fonctions import O2ctoO2s, diff_time_in_days, umolkg_to_umolL
 import copy
 
@@ -412,27 +412,36 @@ def plot_Theta_S(ds_WMO1 : xr.Dataset,strvar : str='',pr : int=0,qc_keep : list=
     pres = ds_WMO['PRES'+strvar].values 
     temp = ds_WMO['TEMP'+strvar].values  
     cycles = ds_WMO['CYCLE_NUMBER'].values  
-    theta_argo = sw.ptmp(psal,temp,pres,pr)
+    lon = ds_WMO['LONGITUDE'].values
+    lat = ds_WMO['LATITUDE'].values
+    lon_2d = lon[:, np.newaxis]  # Résultat de forme (154, 1)
+    lon_2d = lon_2d * np.ones((1, psal.shape[1])) 
+    lat_2d = lat[:, np.newaxis]  # Résultat de forme (154, 1)
+    lat_2d = lat_2d * np.ones((1, psal.shape[1])) 
+
+    psal_absolue  = gsw.SA_from_SP(psal,pres,lon_2d,lat_2d)
+    theta_argo = gsw.pt0_from_t(psal_absolue,temp,pres)
+
     
     norm = plt.Normalize(vmin=np.min(cycles), vmax=np.max(cycles))
     cmap = matplotlib.colormaps.get_cmap('jet')  # Dégradé bleu -> rouge
     colors = cmap(norm(cycles))  # Couleurs pour chaque profil
 
-    plt.figure()
+    fig = plt.figure()
+    ax = fig.add_subplot(1,1,1)
     for i, cycle in enumerate(cycles):
-        h = plt.plot(ds_WMO['PSAL'+strvar].isel(N_PROF=i), theta_argo[i], '.-',color=colors[i],markersize=1,label='ARGO')[0]
+        h = ax.plot(ds_WMO['PSAL'+strvar].isel(N_PROF=i), theta_argo[i], '.-',color=colors[i],markersize=1,label='ARGO')[0]
 
 
-    plt.gca().invert_yaxis()
+    ax.invert_yaxis()
 
-    plt.xlabel('Salinity (PSAL' + strvar +')')
-    plt.ylabel('Potential Temperature (+ ' + strvar + ' at ' + str(pr) + 'db)')
-    plt.title(platform_number[0])
-    plt.grid()
-    plt.gca().invert_yaxis()
-    plt.show()
+    ax.set_xlabel('Salinity (PSAL' + strvar +')')
+    ax.set_ylabel('Potential Temperature (+ ' + strvar + ' at ' + str(pr) + 'db)')
+    ax.set_title(platform_number[0])
+    ax.grid()
+    #plt.show()
 
-    return h
+    return fig
 
 
 def plot_DOXY_cycle(ds_WMO1 : xr.Dataset,strvar : str='',qc_keep : list=[1,2,3,4,8])->None:
@@ -500,7 +509,22 @@ def plot_DOXY_QC(ds_WMO : xr.Dataset, doxy_qc : list, strvar:str='')->None :
     fig, axes = plt.subplots(3,1)
 
     # Density plot
-    _=axes[0].plot(sw.pden(ds_WMO['PSAL'+strvar],ds_WMO['TEMP'+strvar],ds_WMO['PRES'+strvar],0)-1000,ds_WMO['PRES'+strvar],'.k',markersize=1)
+    
+    
+    psal = ds_WMO['PSAL'+strvar]  
+    pres = ds_WMO['PRES'+strvar] 
+    temp = ds_WMO['TEMP'+strvar]
+    lon = ds_WMO['LONGITUDE'].values
+    lat = ds_WMO['LATITUDE'].values
+    lon_2d = lon[:, np.newaxis]  # Résultat de forme (154, 1)
+    lon_2d = lon_2d * np.ones((1, psal.shape[1])) 
+    lat_2d = lat[:, np.newaxis]  # Résultat de forme (154, 1)
+    lat_2d = lat_2d * np.ones((1, psal.shape[1])) 
+
+    psal_absolue  = gsw.SA_from_SP(psal,pres,lon_2d,lat_2d)
+    ct = gsw.CT_from_t(psal_absolue, temp, pres)
+    dens_gsw = gsw.rho(psal_absolue,ct,0)
+    _=axes[0].plot(dens_gsw-1000,ds_WMO['PRES'+strvar],'.k',markersize=1)
     axes[0].grid()
     axes[0].set_xlabel('Argo ' +strvar + ' Density')
     axes[0].set_ylabel('Presure ' + strvar + ' (dbar)')
@@ -550,13 +574,13 @@ def plot_QC_cycle(ds_WMO : xr.Dataset,strvar : str='') -> None :
 
      Returns
      --------
-     None
+     fig : figure
      Only plots with QC variable
     """
 
     list_var = ['PRES' + strvar,'TEMP'+strvar,'PSAL'+strvar]
 
-    plt.figure()
+    fig = plt.figure()
     bid = ds_WMO['CYCLE_NUMBER'].expand_dims(N_LEVELS=np.arange(len(ds_WMO['N_LEVELS']))).transpose()
     Wcolor=[[0.8,0.8,0.8], #  Gray      (QC = 0: no QC was performed)
             [0.3,1, 0.3], # Green     (QC = 1: Good Data)
@@ -578,22 +602,22 @@ def plot_QC_cycle(ds_WMO : xr.Dataset,strvar : str='') -> None :
     for i_var in list_var:
         print(i_var)
         i_plot = i_plot + 1
-        plt.subplot(3,1,i_plot)
+        ax = fig.add_subplot(3,1,i_plot)
         for i in tab_qc: #range(len(Wcolor),-1,-1):
             try:
                 bid2 = bid.where(ds_WMO[i_var + '_QC']==i,np.nan)
                 bid3 = ds_WMO['PRES'+strvar].where(ds_WMO[i_var + '_QC']==i,np.nan)
-                plt.scatter(bid2.values,bid3.values,color=Wcolor[i],label=f"QC={i}")
+                ax.scatter(bid2.values,bid3.values,color=Wcolor[i],label=f"QC={i}")
             except:
                 pass
         
-        plt.gca().invert_yaxis()
-        plt.title(i_var + '_QC')
-        plt.ylabel('PRES'+strvar)
+        ax.invert_yaxis()
+        ax.set_title(i_var + '_QC')
+        ax.set_ylabel('PRES'+strvar)
         if i_plot<=2:
-            plt.xticks([])
+            ax.set_xticks([])
         if i_plot==3:
-            plt.xlabel('CYCLE')
+            ax.set_xlabel('CYCLE')
 
     cbar_ax = plt.axes([0.92, 0.1, 0.02, 0.8])  # Position [left, bottom, width, height]
     cbar = matplotlib.colorbar.ColorbarBase(cbar_ax,cmap=cmap, norm=norm, boundaries=bounds, ticks=(np.arange(0, 10)+np.arange(1, 11))/2, 
@@ -604,9 +628,9 @@ def plot_QC_cycle(ds_WMO : xr.Dataset,strvar : str='') -> None :
 
     #_=plt.tight_layout()
 
-    plt.show()
+    #plt.show()
 
-    return None
+    return fig
 
 def plot_ppox_Inair_Inwater_Ncep(dsair : xr.Dataset, dsinwater : xr.Dataset, ncep_data : np.ndarray) -> None:
     """ Function to plot InAir/InWater PPOX compared to NCEP PPOX
@@ -1005,7 +1029,21 @@ def plot_cmp_corr_WOA(dict_corr : dict, list_pieceT : list, ds_argo_interp : xr.
     None
     A plot is created
     """
-    ana_dens = sw.pden(ds_argo_interp['PSAL_ARGO'],ds_argo_interp['TEMP_ARGO'],ds_argo_interp['PRES_ARGO'],0)
+
+    psal = ds_argo_interp['PSAL_ARGO']  
+    pres = ds_argo_interp['PRES_ARGO'] 
+    temp = ds_argo_interp['TEMP_ARGO'] 
+    lon = ds_argo_interp['LONGITUDE'].values
+    lat = ds_argo_interp['LATITUDE'].values
+
+    lon_2d = lon[:, np.newaxis]  # Résultat de forme (154, 1)
+    lon_2d = lon_2d * np.ones((1, psal.shape[1])) 
+    lat_2d = lat[:, np.newaxis]  # Résultat de forme (154, 1)
+    lat_2d = lat_2d * np.ones((1, psal.shape[1])) 
+
+    psal_absolue  = gsw.SA_from_SP(psal,pres,lon_2d,lat_2d)
+    ct = gsw.CT_from_t(psal_absolue, temp, pres)
+    ana_dens = gsw.rho(psal_absolue,ct,0)
     O2_umolL = umolkg_to_umolL(ds_argo_interp['DOXY_ARGO'],ds_argo_interp['DOXY_ARGO'].units,ana_dens)
     psatargo = O2ctoO2s(O2_umolL,ds_argo_interp['TEMP_ARGO'],ds_argo_interp['PSAL_ARGO'])
     psatargo_mean = psatargo.mean(dim='N_LEVELS')
@@ -1088,7 +1126,21 @@ def plot_cmp_corr_WOA_with_error(dict_corr : dict,  list_pieceT : list, ds_argo_
     None
     A plot is created
     """
-    ana_dens = sw.pden(ds_argo_interp['PSAL_ARGO'],ds_argo_interp['TEMP_ARGO'],ds_argo_interp['PRES_ARGO'],0)
+
+    psal = ds_argo_interp['PSAL_ARGO']  
+    pres = ds_argo_interp['PRES_ARGO'] 
+    temp = ds_argo_interp['TEMP_ARGO'] 
+    lon = ds_argo_interp['LONGITUDE'].values
+    lat = ds_argo_interp['LATITUDE'].values
+
+    lon_2d = lon[:, np.newaxis]  # Résultat de forme (154, 1)
+    lon_2d = lon_2d * np.ones((1, psal.shape[1])) 
+    lat_2d = lat[:, np.newaxis]  # Résultat de forme (154, 1)
+    lat_2d = lat_2d * np.ones((1, psal.shape[1])) 
+
+    psal_absolue  = gsw.SA_from_SP(psal,pres,lon_2d,lat_2d)
+    ct = gsw.CT_from_t(psal_absolue, temp, pres)
+    ana_dens = gsw.rho(psal_absolue,ct,0)
     O2_umolL = umolkg_to_umolL(ds_argo_interp['DOXY_ARGO'],ds_argo_interp['DOXY_ARGO'].units,ana_dens)
     psatargo = O2ctoO2s(O2_umolL,ds_argo_interp['TEMP_ARGO'],ds_argo_interp['PSAL_ARGO'])
     psatargo_mean = psatargo.mean(dim='N_LEVELS')
