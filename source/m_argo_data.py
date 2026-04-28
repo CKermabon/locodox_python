@@ -385,6 +385,8 @@ def get_argo_data_for_NCEP(ds_argo_Rtraj : xr.Dataset,ds_argo_Sprof: xr.Dataset,
     plt.plot(ds_argo_Rtraj_inwater['CYCLE_NUMBER'],ds_argo_Rtraj_inwater['PPOX_DOXY'],'o-r')
 
     # Median  per cycle
+    ds_argo_Rtraj_inair = ds_argo_Rtraj_inair.set_coords('CYCLE_NUMBER')
+    ds_argo_Rtraj_inwater = ds_argo_Rtraj_inwater.set_coords('CYCLE_NUMBER')
     ds_argo_Rtraj_inair = ds_argo_Rtraj_inair.groupby('CYCLE_NUMBER').median(skipna=True)
     ds_argo_Rtraj_inwater = ds_argo_Rtraj_inwater.groupby('CYCLE_NUMBER').median(skipna=True)
 
@@ -430,7 +432,6 @@ def get_argo_data_for_NCEP(ds_argo_Rtraj : xr.Dataset,ds_argo_Sprof: xr.Dataset,
         if (np.isnan(ds_argo_Rtraj_inwater['TEMP'][i_data])): # WMO 6903091 : All Temperature for InAir and InWater are NaN
             ds_argo_Rtraj_inwater['TEMP'][i_data] = temp_results[isok][0]
             print(f"Cycle {cycle_results[isok][0]} : InWater temperature is NaN. Replace by Sprof Temperature near surface")
-            
 
     # We affect a position to each cycle.
     # For some ARGOS float (with Iridium Position, not GPS), the position are recalculated.

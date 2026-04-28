@@ -103,9 +103,9 @@ def plot_WMO_position(ds_WMO: xr.Dataset,ds_bathy: xr.Dataset,depths: np.ndarray
     ax.gridlines(draw_labels=True, linewidth=0.5, color='gray', alpha=0.7, linestyle='-')
 
     plt.title(f"{ds_WMO['PLATFORM_NUMBER'].isel(N_PROF=0).values} : Region where the floats derived") 
-    plt.show()
+    #plt.show()
 
-    return None
+    return fig
     
 def plot_WMO_position_old(ds_WMO: xr.Dataset,ds_bathy: xr.Dataset,depths: np.ndarray,extend_val: float) -> None :
     """ Function to plot longitude/latitude with bathymetry
@@ -281,7 +281,7 @@ def plot_CTD_Argo_Pos(ds_WMO : xr.Dataset, ds_cruise: xr.Dataset, ds_bathy: xr.D
     plt.title(f"{ds_WMO2['PLATFORM_NUMBER'].isel(N_PROF=0).values:.0f} : CTD/ARGO") 
     ax.legend([h_ctd,h_argo],['CTD','Argo'])
     plt.show()
-    return None
+    return fig
 
 
 
@@ -471,21 +471,22 @@ def plot_DOXY_cycle(ds_WMO1 : xr.Dataset,strvar : str='',qc_keep : list=[1,2,3,4
     cmap = matplotlib.colormaps.get_cmap('jet')  # Dégradé bleu -> rouge
     colors = cmap(norm(cycles))  # Couleurs pour chaque profil
 
-    plt.figure()
+    fig = plt.figure()
+    ax = fig.add_subplot(1,1,1)
     for i, cycle in enumerate(cycles):
-        h = plt.plot(ds_WMO['DOXY'+strvar].isel(N_PROF=i), ds_WMO['PRES'+strvar].isel(N_PROF=i), '.-',color=colors[i],markersize=1,label='ARGO')[0]
+        h = ax.plot(ds_WMO['DOXY'+strvar].isel(N_PROF=i), ds_WMO['PRES'+strvar].isel(N_PROF=i), '.-',color=colors[i],markersize=1,label='ARGO')[0]
 
 
-    plt.gca().invert_yaxis()
+    ax.invert_yaxis()
 
-    plt.xlabel(' Oxygen (OXY' + strvar +') (QC = ' + str(qc_keep) + ')')
-    plt.ylabel(' Pressure (PRES' + strvar+')')
-    plt.title(ds_WMO['PLATFORM_NUMBER'].values[0])
-    plt.grid()
+    ax.set_xlabel(' Oxygen (OXY' + strvar +') (QC = ' + str(qc_keep) + ')')
+    ax.set_ylabel(' Pressure (PRES' + strvar+')')
+    ax.set_title(ds_WMO['PLATFORM_NUMBER'].values[0])
+    ax.grid()
 
-    plt.show()
+    #plt.show()
 
-    return h
+    return fig
     
 
 def plot_DOXY_QC(ds_WMO : xr.Dataset, doxy_qc : list, strvar:str='')->None :
@@ -557,9 +558,9 @@ def plot_DOXY_QC(ds_WMO : xr.Dataset, doxy_qc : list, strvar:str='')->None :
     plt.tight_layout()
 #plt.subplots_adjust(top=0.85, wspace=5)
 
-    plt.show()
+    #plt.show()
 
-    return None
+    return fig
     
 
 def plot_QC_cycle(ds_WMO : xr.Dataset,strvar : str='') -> None :
@@ -649,17 +650,18 @@ def plot_ppox_Inair_Inwater_Ncep(dsair : xr.Dataset, dsinwater : xr.Dataset, nce
     None
     A plot is created
     """
-    plt.figure()
-    plt.plot(dsair['CYCLE_NUMBER'],ncep_data,'.-k')
-    plt.plot(dsair['CYCLE_NUMBER'],dsair['PPOX_DOXY'],'.b-')
-    plt.plot(dsinwater['CYCLE_NUMBER'],dsinwater['PPOX_DOXY'],'.r-')
-    plt.grid()
-    plt.xlabel('CYCLE_NUMBER')
-    plt.ylabel('PPOX')
-    _=plt.legend(['NCEP','INAIR','INWATER'])
-    plt.show()
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(dsair['CYCLE_NUMBER'],ncep_data,'.-k')
+    ax.plot(dsair['CYCLE_NUMBER'],dsair['PPOX_DOXY'],'.b-')
+    ax.plot(dsinwater['CYCLE_NUMBER'],dsinwater['PPOX_DOXY'],'.r-')
+    ax.grid()
+    ax.set_xlabel('CYCLE_NUMBER')
+    ax.set_ylabel('PPOX')
+    _=ax.legend(['NCEP','INAIR','INWATER'])
+    #plt.show()
 
-    return None
+    return fig
 
 def plot_cmp_corr_NCEP(dict_corr : dict, list_pieceT : list, dsair : xr.Dataset,ncep_data : np.ndarray,delta_T : np.ndarray) -> None:
     """ Function to compare different PPOX dsair correction
@@ -1524,17 +1526,18 @@ def plot_ref_div_argo(x : np.ndarray,ref : np.ndarray,data : np.ndarray,numfloat
     None 
     A plot is created
     """
-    plt.figure()
-    plt.plot(x,ref/data)
+    fig = plt.figure()
+    ax = fig.add_subplot(1,1,1)
+    ax.plot(x,ref/data)
     mask = np.isfinite(ref) & np.isfinite(data)
     poly_data = np.polyfit(x[mask], ref[mask]/data[mask], 1)
-    plt.plot(x,np.polyval(poly_data,x),'*-r')
-    plt.grid()
-    plt.xlabel('DeltaT')
-    plt.ylabel('REF/ARGO_DATA')
-    plt.title(numfloat)
-    plt.show()
-    return None
+    ax.plot(x,np.polyval(poly_data,x),'*-r')
+    ax.grid()
+    ax.set_xlabel('DeltaT')
+    ax.set_ylabel('REF/ARGO_DATA')
+    ax.set_title(numfloat)
+    #plt.show()
+    return fig
 
 
 def plot_cmp_correction_with_WOA(ds : xr.Dataset,deltaT:np.ndarray,breaks_point:np.ndarray,correction1:np.ndarray,correction2:np.ndarray,ds_woa:xr.Dataset,str_chaine : str,pcoef2:int,pcoef3:int):
