@@ -66,7 +66,7 @@ conda install ipykernel -c conda-forge –-override-channels
 python -m ipykernel install --user --name 'locodox_conda_forge'
 conda install -c conda-forge ipympl –-override-channels
 conda install -c conda-forge dask –-override-channels
-
+conda install -c conda-forge scikit-learn
 pip install pwlf
 
 
