@@ -375,6 +375,9 @@ def get_argo_data_for_NCEP(ds_argo_Rtraj : xr.Dataset,ds_argo_Sprof: xr.Dataset,
     # We calculate the cycle median values.
     ds_argo_Rtraj_inair['JULD_INT'] = ('N_MEASUREMENT',ds_argo_Rtraj_inair['JULD'].astype(int).values) 
     ds_argo_Rtraj_inwater['JULD_INT'] = ('N_MEASUREMENT',ds_argo_Rtraj_inwater['JULD'].astype(int).values) 
+    # WMO 6903091 : Some JULD are not defined (NaT : Not a time). We force associated JULD_INT to Nan (otherwise, it's 9.2e18 ...)
+    ds_argo_Rtraj_inair['JULD_INT'] = ds_argo_Rtraj_inair['JULD_INT'].where(~np.isnat(ds_argo_Rtraj_inair['JULD'].values), np.nan)
+    ds_argo_Rtraj_inwater['JULD_INT'] = ds_argo_Rtraj_inwater['JULD_INT'].where(~np.isnat(ds_argo_Rtraj_inwater['JULD'].values),np.nan)
 
     #
     plt.figure()
@@ -421,8 +424,13 @@ def get_argo_data_for_NCEP(ds_argo_Rtraj : xr.Dataset,ds_argo_Sprof: xr.Dataset,
             ds_argo_Rtraj_inair['PSAL'][i_data]=np.nan
             ds_argo_Rtraj_inwater['PSAL'][i_data]=np.nan
             
-        if (np.abs(ds_argo_Rtraj_inair['TEMP'][i_data] - temp_results[isok][0]) > 0.5):
-            print(f'Cycle {cycle_results[isok][0]}\nRtraj Temperature  differs more than  0.5 degrees from Sprof Temperature')
+        if (np.abs(ds_argo_Rtraj_inwater['TEMP'][i_data] - temp_results[isok][0]) > 0.5):
+            print(f'Cycle {cycle_results[isok][0]}\nRtraj InWater Temperature  differs more than  0.5 degrees from Sprof Temperature')
+
+        if (np.isnan(ds_argo_Rtraj_inwater['TEMP'][i_data])): # WMO 6903091 : All Temperature for InAir and InWater are NaN
+            ds_argo_Rtraj_inwater['TEMP'][i_data] = temp_results[isok][0]
+            print(f"Cycle {cycle_results[isok][0]} : InWater temperature is NaN. Replace by Sprof Temperature near surface")
+            
 
     # We affect a position to each cycle.
     # For some ARGOS float (with Iridium Position, not GPS), the position are recalculated.

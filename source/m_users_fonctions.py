@@ -4,6 +4,65 @@ import xarray as xr
 import pandas as pd
 from scipy.io import loadmat
 import copy
+from sklearn.metrics import r2_score
+
+def calcul_R2_ARGO_CTD(dsctd : xr.Dataset,ds_cycle : xr.Dataset, dict_corr : dict, launch_date : np.datetime64, coef2 : float, coef3 : float) -> None:
+    """ Function to compare an ARGO DOXY profile with a CTD Doxy profile
+
+    Parameters
+    ----------
+    dsctd : xr.Dataset
+     Contains OXYK (O2 in mmol/Kg) and PRES
+    ds_cycle : xr.Dataset
+     Cycle to compare
+    dict_corr : dict
+     Correction to compare
+    launch_date : np.datetime64
+     Launch Date
+    coef2, coef3 : float
+         coefficient used in constructor pressure effect : (1 + (coef2 * Temp + coef3)*Pres/1000)
+     Returns
+     -------
+     R2
+     """
+
+    r2=[]
+    delta_T_cycle = diff_time_in_days(ds_cycle['JULD'].values,launch_date)
+    tab_delta_T = np.tile(delta_T_cycle,(1,len(ds_cycle['N_LEVELS'])))
+    #tab_delta_T = np.vstack([delta_T_cycle1]*len(ds_cycle1['N_LEVELS'])).transpose()
+    
+    doxy_cruise_interp = np.interp(ds_cycle['PRES'].isel(N_PROF=0),dsctd['PRES'].isel(PROF=0),dsctd['DOXY'].isel(PROF=0)) 
+    i_val = 0
+    for corr in dict_corr.items():
+        val_corr = corr[1]
+        if len(val_corr)==1:
+            bid = val_corr[0]*ds_cycle['DOXY']
+        elif len(val_corr)==2:
+            bid = (val_corr[0]*(1+val_corr[1]/100*tab_delta_T/365))*ds_cycle['DOXY']
+        else:
+            if val_corr[2] == 0.0:
+                bid = (val_corr[0]*(1+val_corr[1]/100*tab_delta_T/365))*ds_cycle['DOXY']
+            else:
+                bid = (val_corr[0]*(1+val_corr[1]/100*tab_delta_T/365))*ds_cycle['DOXY']
+                bid = bid/(1 + (coef2*ds_cycle['TEMP'] + coef3) * ds_cycle['PRES']/1000) #undo DAC pressure effecct
+                bid = (1 + (coef2*ds_cycle['TEMP'] + val_corr[2]) * ds_cycle['PRES']/1000) * bid #apply new pressure effect
+
+        # We work on ARGO pressure
+        #bid = bid.isel(N_PROF=0)
+        #mask = ~np.isnan(bid) & ~np.isnan(doxy_cruise_interp)
+        #print(r2_score(doxy_cruise_interp[mask], bid[mask]))
+        #r2.append(r2_score(doxy_cruise_interp[mask], bid[mask]))   
+
+        # We work on CTD pressure
+        bid = bid.isel(N_PROF=0)
+        bid_interp = np.interp(dsctd['PRES'].isel(PROF=0),ds_cycle['PRES'].isel(N_PROF=0),bid)
+        doxy_cruise_en_cours = dsctd['DOXY'].isel(PROF=0)
+        mask = ~np.isnan(bid_interp) & ~np.isnan(doxy_cruise_en_cours)
+        print(r2_score(doxy_cruise_en_cours[mask], bid_interp[mask]))
+        r2.append(r2_score(doxy_cruise_en_cours[mask], bid_interp[mask]))  
+
+    return r2
+
 
 
 def cherche_info_ctd_ref(fic_txt,fic_mat,num_float):
