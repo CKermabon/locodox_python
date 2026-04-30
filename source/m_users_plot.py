@@ -686,12 +686,15 @@ def plot_cmp_corr_NCEP(dict_corr : dict, list_pieceT : list, dsair : xr.Dataset,
     A plot is created
     """
 
-    cmap = my_cmap
-    norm = plt.Normalize(vmin=0, vmax=len(dict_corr))
+    #cmap = my_cmap
+    #norm = plt.Normalize(vmin=0, vmax=len(dict_corr))
     #cmap = matplotlib.colormaps.get_cmap('jet')  # Dégradé bleu -> rouge
-    colors = cmap(norm(np.arange(0,len(dict_corr))))  # Couleurs pour chaque profil
-    #colors = cmap(np.linspace(0, 1, len(dict_corr)))  # <- linspace au lieu de arange
-
+    #colors = cmap(norm(np.arange(0,len(dict_corr))))  # Couleurs pour chaque profil
+    my_coul = my_cmap.colors  # Liste des couleurs dans la colormap
+    if len(dict_corr) <= len(my_coul):
+        colors = [my_coul[i] for i in range(len(dict_corr))]
+    else:
+        colors = [my_coul[i % len(my_coul)] for i in range(len(dict_corr))]
     plt.figure()
     plt.subplot(2,1,1)
     plt.plot(dsair['CYCLE_NUMBER'],ncep_data,'.-k',markersize=1,label='NCEP')
@@ -836,11 +839,16 @@ def plot_cmp_corr_NCEP_with_error(dict_corr : dict,  list_pieceT : list, dsair :
     None
     A plot is created
     """
-    norm = plt.Normalize(vmin=0, vmax=len(dict_corr))
+    #norm = plt.Normalize(vmin=0, vmax=len(dict_corr))
     #cmap = matplotlib.colormaps.get_cmap('jet')  # Dégradé bleu -> rouge
-    cmap = my_cmap
-    colors = cmap(norm(np.arange(0,len(dict_corr))))  # Couleurs pour chaque profil
-
+    #cmap = my_cmap
+    #colors = cmap(norm(np.arange(0,len(dict_corr))))  # Couleurs pour chaque profil
+    my_coul = my_cmap.colors  # Liste des couleurs dans la colormap
+    if len(dict_corr) <= len(my_coul):
+        colors = [my_coul[i] for i in range(len(dict_corr))]
+    else:
+        colors = [my_coul[i % len(my_coul)] for i in range(len(dict_corr))]
+        
     plt.figure()
     plt.plot(dsair['CYCLE_NUMBER'],ncep_data,'.-k',markersize=1,label='NCEP')
     plt.plot(dsair['CYCLE_NUMBER'],dsair['PPOX_DOXY'],'.--k',markersize=1,label='RAW')
@@ -1055,11 +1063,16 @@ def plot_cmp_corr_WOA(dict_corr : dict, list_pieceT : list, ds_argo_interp : xr.
     psatargo_mean = psatargo.mean(dim='N_LEVELS')
     psatWOA_mean = ds_woa_interp['Psatwoa'].mean(dim='N_LEVELS')
 
-    norm = plt.Normalize(vmin=0, vmax=len(dict_corr))
+    #norm = plt.Normalize(vmin=0, vmax=len(dict_corr))
     #cmap = matplotlib.colormaps.get_cmap('jet')  # Dégradé bleu -> rouge
-    cmap = my_cmap
-    colors = cmap(norm(np.arange(0,len(dict_corr))))  # Couleurs pour chaque profil
-
+    #cmap = my_cmap
+    #colors = cmap(norm(np.arange(0,len(dict_corr))))  # Couleurs pour chaque profil
+    my_coul = my_cmap.colors  # Liste des couleurs dans la colormap
+    if len(dict_corr) <= len(my_coul):
+        colors = [my_coul[i] for i in range(len(dict_corr))]
+    else:
+        colors = [my_coul[i % len(my_coul)] for i in range(len(dict_corr))]
+    
     plt.figure()
     plt.plot(delta_T,psatWOA_mean,'.-k',label='WOA')
     plt.plot(delta_T,psatargo_mean,'.--k',label='RAW')
@@ -1153,11 +1166,16 @@ def plot_cmp_corr_WOA_with_error(dict_corr : dict,  list_pieceT : list, ds_argo_
     psatargo_mean = psatargo.mean(dim='N_LEVELS')
     psatWOA_mean = ds_woa_interp['Psatwoa'].mean(dim='N_LEVELS')
 
-    norm = plt.Normalize(vmin=0, vmax=len(dict_corr))
+    #norm = plt.Normalize(vmin=0, vmax=len(dict_corr))
     #cmap = matplotlib.colormaps.get_cmap('jet')  # Dégradé bleu -> rouge
-    cmap = my_cmap
-    colors = cmap(norm(np.arange(0,len(dict_corr))))  # Couleurs pour chaque profil
-
+    #cmap = my_cmap
+    #colors = cmap(norm(np.arange(0,len(dict_corr))))  # Couleurs pour chaque profil
+    my_coul = my_cmap.colors  # Liste des couleurs dans la colormap
+    if len(dict_corr) <= len(my_coul):
+        colors = [my_coul[i] for i in range(len(dict_corr))]
+    else:
+        colors = [my_coul[i % len(my_coul)] for i in range(len(dict_corr))]
+        
     plt.figure()
     plt.plot(delta_T,psatWOA_mean,'.-k',label='WOA')
     plt.plot(delta_T,psatargo_mean,'.--k',label='RAW')
@@ -1426,7 +1444,92 @@ def plot_cmp_corr_WOA_old(dict_corr : dict, ds_argo_interp : xr.Dataset, ds_woa_
 
     return None
 
+
 def plot_cmp_ARGO_CTD(dsctd : xr.Dataset,ds_cycle : xr.Dataset, dict_corr : dict, launch_date : np.datetime64, coef2 : float, coef3 : float) -> None:
+    """ Function to compare an ARGO DOXY profile with a CTD Doxy profile
+
+    Parameters
+    ----------
+    dsctd : xr.Dataset
+     Contains OXYK (O2 in mmol/Kg) and PRES
+    ds_cycle : xr.Dataset
+     Cycle to compare
+    dict_corr : dict
+     Correction to compare
+    launch_date : np.datetime64
+     Launch Date
+    coef2, coef3 : float
+         coefficient used in constructor pressure effect : (1 + (coef2 * Temp + coef3)*Pres/1000)     
+     Returns
+     -------
+     None
+     A plot is created
+     """
+    
+    norm = plt.Normalize(vmin=0, vmax=len(dict_corr))
+    cmap = matplotlib.colormaps.get_cmap('jet')  # colormap
+    colors = cmap(norm(np.arange(0,len(dict_corr))))  # Color
+    
+    delta_T_cycle = diff_time_in_days(ds_cycle['JULD'].values,launch_date)
+    tab_delta_T = np.tile(delta_T_cycle,(1,len(ds_cycle['N_LEVELS'])))
+    #tab_delta_T = np.vstack([delta_T_cycle1]*len(ds_cycle1['N_LEVELS'])).transpose()
+
+    fig1=plt.figure()
+    ax = fig1.add_subplot(111)  
+    fig2=plt.figure()
+    ax2= fig2.add_subplot(111)
+    fig3=plt.figure()
+    ax3 = fig3.add_subplot(111)
+    ax.plot(dsctd['DOXY'].isel(PROF=0), dsctd['PRES'].isel(PROF=0), 'x--b', label='CTD')[0]
+    ax.plot(ds_cycle['DOXY'].isel(N_PROF=0),ds_cycle['PRES'].isel(N_PROF=0),'x--k',label='RAW')[0]
+    doxy_cruise_interp = np.interp(ds_cycle['PRES'].isel(N_PROF=0),dsctd['PRES'].isel(PROF=0),dsctd['DOXY'].isel(PROF=0)) 
+
+    ax2.plot(ds_cycle['DOXY'].isel(N_PROF=0),doxy_cruise_interp,'.--b',label='RAW')[0]
+    ax3.plot(ds_cycle['DOXY'].isel(N_PROF=0),doxy_cruise_interp-ds_cycle['DOXY'].isel(N_PROF=0),'.--b',label='RAW')[0]
+
+
+    i_coul = -1
+    for corr in dict_corr.items():
+        i_coul = i_coul + 1
+        val_corr = corr[1]    
+        if len(val_corr)==1:
+            bid = val_corr[0]*ds_cycle['DOXY']
+        elif len(val_corr)==2:
+            bid = (val_corr[0]*(1+val_corr[1]/100*tab_delta_T/365))*ds_cycle['DOXY']
+        else:
+            if val_corr[2] == 0.0:
+                bid = (val_corr[0]*(1+val_corr[1]/100*tab_delta_T/365))*ds_cycle['DOXY']
+            else:
+                bid = (val_corr[0]*(1+val_corr[1]/100*tab_delta_T/365))*ds_cycle['DOXY']
+                bid = bid/(1 + (coef2*ds_cycle['TEMP'] + coef3) * ds_cycle['PRES']/1000)
+                bid = (1 + (coef2*ds_cycle['TEMP'] + val_corr[2]) * ds_cycle['PRES']/1000) * bid 
+            
+        ax.plot(bid.isel(N_PROF=0),ds_cycle['PRES'].isel(N_PROF=0),'.-',color=colors[i_coul],label=corr[0])[0]
+        ax2.plot(bid.isel(N_PROF=0),doxy_cruise_interp,'.-',color=colors[i_coul],label=corr[0])[0]
+        ax3.plot(bid.isel(N_PROF=0),doxy_cruise_interp-bid.isel(N_PROF=0),'.-',color=colors[i_coul],label=corr[0])[0]
+
+    
+    ax.grid()
+    ax.invert_yaxis()
+    ax.set_xlabel('DOXY')
+    ax.set_ylabel('PRES')
+    _=ax.legend(draggable=True)
+
+    ax2.grid()
+    ax2.set_xlabel('ARGO DOXY')
+    ax2.set_ylabel('CTD DOXY')
+    _=ax2.legend(draggable=True)
+
+    ax3.grid()
+    ax3.set_xlabel('ARGO DOXY')
+    ax3.set_ylabel('CTD DOXY - ARGO DOXY')
+    _=ax3.legend(draggable=True)
+
+    plt.show()
+
+    return fig1,fig2, fig3
+
+def plot_cmp_ARGO_CTD_old(dsctd : xr.Dataset,ds_cycle : xr.Dataset, dict_corr : dict, launch_date : np.datetime64, coef2 : float, coef3 : float) -> None:
     """ Function to compare an ARGO DOXY profile with a CTD Doxy profile
 
     Parameters

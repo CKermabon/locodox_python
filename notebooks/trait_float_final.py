@@ -68,14 +68,6 @@ from init_for_processing import *
 # In[3]:
 
 
-if num_float=='6903035':
-    test_piece =1
-    compute_NCEP_breakpoint=1
-    breakpoint_NCEP_user = 18
-    nb_segment_NCEP = 2
-    nb_segment_WOA = 2
-    print(compute_NCEP_breakpoint,test_piece)
-
 
 # In[4]:
 
@@ -1605,13 +1597,15 @@ if cmp_ctd==1:
                      'Correction CTD with PresEffect' : corr_final_CTD_with_pressure_correction}
             
         R2=calcul_R2_ARGO_CTD(ds_cruise2,ds_cycle,dict_corr,launch_date,pcoef2,pcoef3) 
-        _=plot_cmp_ARGO_CTD(ds_cruise2,ds_cycle,dict_corr,launch_date,pcoef2,pcoef3) 
+        fig1, fig2, fig3 =plot_cmp_ARGO_CTD(ds_cruise2,ds_cycle,dict_corr,launch_date,pcoef2,pcoef3) 
 
 
 # In[59]:
 
 
-plt.savefig(os.path.join(rep_fic_fig,num_float +'_cmp_differents_corr_with_CTD.png'))
+fig1.savefig(os.path.join(rep_fic_fig,num_float +'_cmp_differents_corr_with_CTD.png'))
+fig2.savefig(os.path.join(rep_fic_fig,num_float +'_cmp_differents_corr_with_CTD_V2.png'))
+fig3.savefig(os.path.join(rep_fic_fig,num_float +'_cmp_differents_corr_with_CTD_V3.png'))
 
 
 

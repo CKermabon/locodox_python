@@ -30,7 +30,7 @@ last_cycle_to_use = 113
 # Piecewise or not
 test_piece = 1 
 # Compute automatically NCEP breakpoint or force it
-compute_NCEP_breakpoint=0
+compute_NCEP_breakpoint=1
 if test_piece==1:
     nb_segment_WOA = 2
 # Compute automatically NCEP breakpoint or force it
