@@ -572,7 +572,7 @@ write_param_results(dict_corr, num_float)
 dict_corr = {'GAIN WOA' : params_Gain_WOA,'Gain NCEP' : params_Gain_NCEP,'Gain/Derive WOA' : params_Gain_Derive_WOA,
              'Gain/Derive Ncep' : params_Gain_Derive_NCEP,'Gain Ncep CarryOver' : params_Gain_NCEP_CarryOver,'Gain/Derive Ncep CarryOver' : params_Gain_Derive_NCEP_CarryOver}
 breakpoint_list=[[]] * len(dict_corr)
-_=plot_cmp_corr_NCEP(dict_corr,breakpoint_list,dsair,NCEP_PPOX,delta_T_NCEP)
+_=plot_cmp_corr_NCEP(dict_corr,breakpoint_list,dsair,NCEP_PPOX,delta_T_NCEP,my_cmap)
 
 
 # In[43]:
@@ -584,7 +584,7 @@ plt.savefig(os.path.join(rep_fic_fig,num_float +'_cmp_corr_NCEP.png'))
 # In[44]:
 
 
-_=plot_cmp_corr_WOA(dict_corr, breakpoint_list,ds_argo_interp, ds_woa_interp, delta_T_WOA)
+_=plot_cmp_corr_WOA(dict_corr, breakpoint_list,ds_argo_interp, ds_woa_interp, delta_T_WOA,my_cmap)
 
 
 # In[45]:
@@ -957,8 +957,8 @@ if test_piece==1:
 dict_corr = {'GAIN WOA' : params_Gain_WOA,'Gain NCEP' : params_Gain_NCEP,'Gain/Derive WOA' : params_Gain_Derive_WOA,
              'Gain/Derive Ncep' : params_Gain_Derive_NCEP,'Gain Ncep CarryOver' : params_Gain_NCEP_CarryOver,'Gain/Derive Ncep CarryOver' : params_Gain_Derive_NCEP_CarryOver}
 breakpoint_list=[[]] * len(dict_corr)
-_=plot_cmp_corr_NCEP(dict_corr,breakpoint_list,dsair,NCEP_PPOX,delta_T_NCEP)
-_=plot_cmp_corr_WOA(dict_corr, breakpoint_list,ds_argo_interp, ds_woa_interp, delta_T_WOA)
+_=plot_cmp_corr_NCEP(dict_corr,breakpoint_list,dsair,NCEP_PPOX,delta_T_NCEP,my_cmap)
+_=plot_cmp_corr_WOA(dict_corr, breakpoint_list,ds_argo_interp, ds_woa_interp, delta_T_WOA,my_cmap)
 
 
 # In[51]:
@@ -974,10 +974,10 @@ if test_piece==1:
     breaks_NCEP_plot[0]=np.min([delta_T_WOA[0],delta_T_NCEP[0]])
     breaks_WOA_plot[0]=np.min([delta_T_WOA[0],delta_T_NCEP[0]])
     breakpoint_list=[breaks_WOA_plot,breaks_NCEP_plot,breaks_NCEP_plot]
-    _=plot_cmp_corr_NCEP(dict_corr,breakpoint_list,dsair,NCEP_PPOX,delta_T_NCEP)
+    _=plot_cmp_corr_NCEP(dict_corr,breakpoint_list,dsair,NCEP_PPOX,delta_T_NCEP,my_cmap)
     plt.show()
     plt.savefig(os.path.join(rep_fic_fig,num_float +'_cmp_corr_NCEP_piece.png'))
-    _=plot_cmp_corr_WOA(dict_corr, breakpoint_list,ds_argo_interp, ds_woa_interp, delta_T_WOA)
+    _=plot_cmp_corr_WOA(dict_corr, breakpoint_list,ds_argo_interp, ds_woa_interp, delta_T_WOA,my_cmap)
     plt.show()
     plt.savefig(os.path.join(rep_fic_fig,num_float +'_cmp_corr_PSATWOA_piece.png'))
 
@@ -1730,7 +1730,7 @@ dict_corr = {'Final Correction' : np.stack((corr_final_to_use, perr_to_use), axi
 
 breakpoint_list = [breaks_to_keep]*len(dict_corr)
 
-_=plot_cmp_corr_NCEP_with_error(dict_corr,breakpoint_list,dsair,NCEP_PPOX,delta_T_NCEP)
+_=plot_cmp_corr_NCEP_with_error(dict_corr,breakpoint_list,dsair,NCEP_PPOX,delta_T_NCEP,my_cmap)
 
 
 # In[64]:
@@ -1742,7 +1742,7 @@ plt.savefig(os.path.join(rep_fic_fig,num_float +'_cmp_NCEP_final_corr.png'))
 # In[65]:
 
 
-_=plot_cmp_corr_WOA_with_error(dict_corr,breakpoint_list,ds_argo_interp, ds_woa_interp, delta_T_WOA)
+_=plot_cmp_corr_WOA_with_error(dict_corr,breakpoint_list,ds_argo_interp, ds_woa_interp, delta_T_WOA,my_cmap)
 
 
 # In[66]:

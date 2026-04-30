@@ -663,7 +663,7 @@ def plot_ppox_Inair_Inwater_Ncep(dsair : xr.Dataset, dsinwater : xr.Dataset, nce
 
     return fig
 
-def plot_cmp_corr_NCEP(dict_corr : dict, list_pieceT : list, dsair : xr.Dataset,ncep_data : np.ndarray,delta_T : np.ndarray) -> None:
+def plot_cmp_corr_NCEP(dict_corr : dict, list_pieceT : list, dsair : xr.Dataset,ncep_data : np.ndarray,delta_T : np.ndarray,my_cmap) -> None:
     """ Function to compare different PPOX dsair correction
 
     Parameters
@@ -685,9 +685,12 @@ def plot_cmp_corr_NCEP(dict_corr : dict, list_pieceT : list, dsair : xr.Dataset,
     None
     A plot is created
     """
+
+    cmap = my_cmap
     norm = plt.Normalize(vmin=0, vmax=len(dict_corr))
-    cmap = matplotlib.colormaps.get_cmap('jet')  # Dégradé bleu -> rouge
+    #cmap = matplotlib.colormaps.get_cmap('jet')  # Dégradé bleu -> rouge
     colors = cmap(norm(np.arange(0,len(dict_corr))))  # Couleurs pour chaque profil
+    #colors = cmap(np.linspace(0, 1, len(dict_corr)))  # <- linspace au lieu de arange
 
     plt.figure()
     plt.subplot(2,1,1)
@@ -811,7 +814,7 @@ def plot_cmp_corr_NCEP_old(dict_corr : dict, dsair : xr.Dataset,ncep_data : np.n
 
 
 
-def plot_cmp_corr_NCEP_with_error(dict_corr : dict,  list_pieceT : list, dsair : xr.Dataset,ncep_data : np.ndarray,delta_T : np.ndarray) -> None:
+def plot_cmp_corr_NCEP_with_error(dict_corr : dict,  list_pieceT : list, dsair : xr.Dataset,ncep_data : np.ndarray,delta_T : np.ndarray,my_cmap) -> None:
     """ Function to compare different PPOX dsair correction
 
     Parameters
@@ -834,7 +837,8 @@ def plot_cmp_corr_NCEP_with_error(dict_corr : dict,  list_pieceT : list, dsair :
     A plot is created
     """
     norm = plt.Normalize(vmin=0, vmax=len(dict_corr))
-    cmap = matplotlib.colormaps.get_cmap('jet')  # Dégradé bleu -> rouge
+    #cmap = matplotlib.colormaps.get_cmap('jet')  # Dégradé bleu -> rouge
+    cmap = my_cmap
     colors = cmap(norm(np.arange(0,len(dict_corr))))  # Couleurs pour chaque profil
 
     plt.figure()
@@ -1009,7 +1013,7 @@ def plot_cmp_corr_NCEP_with_error_old(dict_corr : dict, perr_to_use : np.ndarray
     
 
 
-def plot_cmp_corr_WOA(dict_corr : dict, list_pieceT : list, ds_argo_interp : xr.Dataset, ds_woa_interp : xr.Dataset, delta_T : np.ndarray)-> None:
+def plot_cmp_corr_WOA(dict_corr : dict, list_pieceT : list, ds_argo_interp : xr.Dataset, ds_woa_interp : xr.Dataset, delta_T : np.ndarray,my_cmap)-> None:
     """ Function to compare different correction with PSATWOA
 
     Parameters
@@ -1052,7 +1056,8 @@ def plot_cmp_corr_WOA(dict_corr : dict, list_pieceT : list, ds_argo_interp : xr.
     psatWOA_mean = ds_woa_interp['Psatwoa'].mean(dim='N_LEVELS')
 
     norm = plt.Normalize(vmin=0, vmax=len(dict_corr))
-    cmap = matplotlib.colormaps.get_cmap('jet')  # Dégradé bleu -> rouge
+    #cmap = matplotlib.colormaps.get_cmap('jet')  # Dégradé bleu -> rouge
+    cmap = my_cmap
     colors = cmap(norm(np.arange(0,len(dict_corr))))  # Couleurs pour chaque profil
 
     plt.figure()
@@ -1106,7 +1111,7 @@ def plot_cmp_corr_WOA(dict_corr : dict, list_pieceT : list, ds_argo_interp : xr.
     return None
 
 
-def plot_cmp_corr_WOA_with_error(dict_corr : dict,  list_pieceT : list, ds_argo_interp : xr.Dataset, ds_woa_interp : xr.Dataset, delta_T : np.ndarray)-> None:
+def plot_cmp_corr_WOA_with_error(dict_corr : dict,  list_pieceT : list, ds_argo_interp : xr.Dataset, ds_woa_interp : xr.Dataset, delta_T : np.ndarray,my_cmap)-> None:
     """ Function to compare different correction with PSATWOA
 
     Parameters
@@ -1149,7 +1154,8 @@ def plot_cmp_corr_WOA_with_error(dict_corr : dict,  list_pieceT : list, ds_argo_
     psatWOA_mean = ds_woa_interp['Psatwoa'].mean(dim='N_LEVELS')
 
     norm = plt.Normalize(vmin=0, vmax=len(dict_corr))
-    cmap = matplotlib.colormaps.get_cmap('jet')  # Dégradé bleu -> rouge
+    #cmap = matplotlib.colormaps.get_cmap('jet')  # Dégradé bleu -> rouge
+    cmap = my_cmap
     colors = cmap(norm(np.arange(0,len(dict_corr))))  # Couleurs pour chaque profil
 
     plt.figure()

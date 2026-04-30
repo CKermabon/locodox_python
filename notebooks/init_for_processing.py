@@ -3,6 +3,8 @@ import xarray as xr
 import os
 from datetime import date, datetime
 from m_users_fonctions import cherche_info_ctd_ref
+import matplotlib.colors as mcolors
+
 fic_txt = '/Users/chemon/ARGO_NEW/NEW_LOCODOX/locodox_python/BDD_TR/bdd_REF_ARGO.txt'
 fic_mat = '/Users/chemon/ARGO_NEW/NEW_LOCODOX/locodox_python/BDD_TR/bddo2ref_all_2025.mat'
 rep_data_argo = '/Users/chemon/tmp/' #'/Volumes/argo/gdac/dac/coriolis/'
@@ -146,3 +148,19 @@ ftp_server = 'ftp.cdc.noaa.gov'
 rep_ftp = 'Datasets/ncep.reanalysis/surface'
 # NCEP variables needed.
 ncep_variables = ['slp','air.sig995','rhum.sig995']
+
+couleurs = [
+        (1, 0, 0),       # Rouge
+        (0, 1, 0),       # Vert
+        (0, 0, 1),       # Bleu
+        (1, 1, 0),       # Jaune
+        (1, 0.65, 0),    # Orange
+        (0, 1, 1),       # Cyan
+        (1, 0.75, 0.8),  # Rose
+        (0.65, 0.16, 0.16), # Marron
+        (0, 0.5, 0.5),    # Bleu-vert
+        (0.5, 0, 0.5)   # Violet
+
+    ]
+
+my_cmap = mcolors.ListedColormap(couleurs, name='ma_palette')
