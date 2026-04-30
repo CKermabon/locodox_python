@@ -11,3 +11,5 @@ conda install pwlf -c conda-forge --override-channels
 conda install ipykernel -c conda-forge --override-channels
 python -m ipykernel install --user --name 'pydox_conda_forge'
 conda install -c conda-forge jupyterlab
+conda install -c conda-forge geopy 
+conda install -c conda-forge scikit-learn
