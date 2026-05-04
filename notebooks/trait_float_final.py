@@ -1664,6 +1664,8 @@ else:
     perr_to_use = perr_final_CTD_with_pressure
 
 comment_corr = 'Final correction : '+ comment_corr
+if corr_to_apply != 1:
+    comment_corr =f"{comment_corr}  (cycle {num_cycle} compared to CTD {num_ctd})"
 print(comment_corr)
 print(corr_final_to_use)
 print(perr_to_use)
