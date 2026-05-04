@@ -275,6 +275,7 @@ def write_param_results(dict_corr : dict,num_float : str,*args) :
         liste_cycle = args[3]
         cruise_name = args[4]
         pres_threshold = args[5]
+        R2 = args[6]
     else:
         fic = None
         info_ctd = 0
@@ -284,8 +285,10 @@ def write_param_results(dict_corr : dict,num_float : str,*args) :
     if info_ctd==1:
         line = f"Ctd/Cycle comparison : "
         line_tot.append(line)
-        line = f"Cruise  {cruise_name} / CTD {liste_ctd} / Cycle  {liste_cycle} / Pressure_threshold {pres_threshold}"
-        line_tot.append(line)
+        for i in range(len(R2)):
+            line = f"Cruise {cruise_name[i]} / CTD {liste_ctd[i]} / Cycle {liste_cycle[i]} / Pressure_threshold {pres_threshold} / R2 : {R2[i]:.4f}"
+        #line = f"Cruise  {cruise_name} / CTD {liste_ctd} / Cycle  {liste_cycle} / Pressure_threshold {pres_threshold} / R2 : {R2:.4f}"
+            line_tot.append(line)
     
     for index, (key, value) in enumerate(dict_corr.items()):
         param =  value

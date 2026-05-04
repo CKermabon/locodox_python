@@ -1672,20 +1672,29 @@ print(perr_to_use)
 # In[61]:
 
 
+r2 = []
 if cmp_ctd == 1:
-    if nb_segment>1:
-            #index = np.argmax(np.array(breakpoints_cycle) >= num_cycle[i_ctd]) if np.any(np.array(breakpoints_cycle) >= num_cycle[i_ctd]) else -1
-            #index = index - 1
-            index = next(x for x, val in enumerate(np.array(breaks_to_keep)) if val>= delta_T_Sprof_en_cours)
+    for i_ctd in np.arange(len(num_ctd)):
+        ds_cruise2 = copy.deepcopy(ds_cruise)
+        ds_cruise2 = ds_cruise2.where(
+            (ds_cruise2['STATION_NUMBER'] == num_ctd[i_ctd]) & (ds_cruise2['STATION_CRUISE'] == cruise_name[i_ctd]),
+            drop=True)
+        ds_cycle = ds_argo_Sprof.where(
+            (ds_argo_Sprof['CYCLE_NUMBER'] == num_cycle[i_ctd]) & (ds_argo_Sprof['DIRECTION'] == 'A'), drop=True)
+        delta_T_Sprof_en_cours = diff_time_in_days(ds_cycle['JULD'].values, launch_date)
+        if nb_segment > 1:
+            # index = np.argmax(np.array(breakpoints_cycle) >= num_cycle[i_ctd]) if np.any(np.array(breakpoints_cycle) >= num_cycle[i_ctd]) else -1
+            # index = index - 1
+            index = next(x for x, val in enumerate(np.array(breaks_to_keep)) if val >= delta_T_Sprof_en_cours)
             if index > 0:
-                index = index -1
-                dict_corr = {'Final Result' : corr_final_to_use[index,:]}
+                index = index - 1
+                dict_corr = {'Final Result': corr_final_to_use[index, :]}
 
-            else:
-                dict_corr = {'Final Result' : corr_final_to_use}
-            
-    r2=calcul_R2_ARGO_CTD(ds_cruise2,ds_cycle,dict_corr,launch_date,pcoef2,pcoef3) 
-    print(f"R2 Value for {comment_corr} : {r2}")
+        else:
+            dict_corr = {'Final Result': corr_final_to_use}
+
+        r2_bid = calcul_R2_ARGO_CTD(ds_cruise2, ds_cycle, dict_corr, launch_date, pcoef2, pcoef3)
+        r2.append(r2_bid[0])
 
 
 # In[62]:
@@ -1708,7 +1717,7 @@ if test_piece==1:
 else:
     dict_corr = dict_corr1 | dict_corr3 | dict_corr4
 
-write_param_results(dict_corr,num_float,fic_res_ASCII,cmp_ctd,num_ctd,num_cycle,cruise_name,pressure_threshold)
+write_param_results(dict_corr,num_float,fic_res_ASCII,cmp_ctd,num_ctd,num_cycle,cruise_name,pressure_threshold,r2)
 
 
 # In[63]:
